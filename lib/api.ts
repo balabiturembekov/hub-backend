@@ -38,11 +38,38 @@ class ApiClient {
       (error: AxiosError) => {
         // Network error (no response)
         if (!error.response) {
-          console.error('Network Error:', error.message);
-          const networkError = new Error(
-            error.message || 'Network error: Could not connect to server. Please check if the server is running.'
-          );
+          const apiUrl = API_URL;
+          const errorMessage = error.message || 'Network error';
+          const isConnectionRefused = errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ERR_CONNECTION_REFUSED');
+          const isNetworkUnavailable = errorMessage.includes('ERR_NETWORK') || errorMessage.includes('Network Error');
+          
+          console.error('Network Error:', {
+            message: errorMessage,
+            apiUrl,
+            code: error.code,
+            config: {
+              url: error.config?.url,
+              method: error.config?.method,
+              baseURL: error.config?.baseURL,
+            },
+          });
+          
+          // Create more informative error message
+          let userMessage = 'Network error: Could not connect to server.';
+          if (isConnectionRefused || isNetworkUnavailable) {
+            userMessage = `Cannot connect to backend server at ${apiUrl}. Please check if the backend is running.`;
+          } else if (error.code === 'ENOTFOUND') {
+            userMessage = `Cannot resolve server address. Please check your API URL: ${apiUrl}`;
+          } else if (error.code === 'ETIMEDOUT') {
+            userMessage = `Connection timeout. The server at ${apiUrl} is not responding.`;
+          } else {
+            userMessage = `Network error: ${errorMessage}. API URL: ${apiUrl}`;
+          }
+          
+          const networkError = new Error(userMessage);
           (networkError as any).isNetworkError = true;
+          (networkError as any).apiUrl = apiUrl;
+          (networkError as any).originalError = error;
           
           // Report network errors to Sentry (but not auth errors)
           // Check if we're not in development or if Sentry is explicitly enabled
@@ -52,8 +79,17 @@ class ApiClient {
           
           if (shouldReport) {
             Sentry.captureException(error, {
-              tags: { type: 'network_error' },
+              tags: { 
+                type: 'network_error',
+                api_url: apiUrl,
+                error_code: error.code || 'unknown',
+              },
               level: 'warning',
+              extra: {
+                apiUrl,
+                errorMessage,
+                errorCode: error.code,
+              },
             });
           }
           

@@ -130,9 +130,18 @@ export default function RegisterPage() {
       router.push('/dashboard');
     } catch (err: unknown) {
       console.error('Registration error:', err);
-      const error = err as { isNetworkError?: boolean; response?: { data?: { message?: string } }; message?: string };
+      const error = err as { 
+        isNetworkError?: boolean; 
+        apiUrl?: string;
+        response?: { data?: { message?: string } }; 
+        message?: string;
+      };
       if (error.isNetworkError) {
-        setLocalError('Network error: Could not connect to server. Please check if the backend is running on http://localhost:3001');
+        const apiUrl = error.apiUrl || 'http://localhost:3001/api';
+        setLocalError(
+          error.message || 
+          `Cannot connect to backend server at ${apiUrl}. Please check if the backend is running.`
+        );
       } else {
         setLocalError(error.response?.data?.message || error.message || 'Registration failed');
       }
