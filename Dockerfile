@@ -6,7 +6,12 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+# Increase timeout and retry for npm install (fixes network timeout issues)
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder

@@ -8,7 +8,13 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci && npm cache clean --force
+# Increase timeout and retry for npm install (fixes network timeout issues)
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -31,7 +37,13 @@ RUN apk add --no-cache wget netcat-openbsd postgresql-client
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci --only=production && npm cache clean --force
+# Increase timeout and retry for npm install (fixes network timeout issues)
+RUN npm config set fetch-timeout 300000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm ci --omit=dev && \
+    npm cache clean --force
 
 # Generate Prisma Client in production
 RUN npx prisma generate
