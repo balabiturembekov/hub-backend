@@ -31,7 +31,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+# .env* - commented out to allow .env.example
+.env
+.env.local
+.env.production
+.env.development
 
 # vercel
 .vercel
@@ -39,3 +43,34 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Server build artifacts
+/server/dist
+/server/node_modules
+/server/.next
+
+# Server uploads (keep structure but ignore content)
+/server/uploads/*
+!/server/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Prevent nested git repositories
+**/.git/
