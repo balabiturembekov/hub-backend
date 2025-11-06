@@ -51,7 +51,19 @@ export class UsersService {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // Validate password strength
+    if (dto.password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+    
+    // Check password complexity (at least one letter and one number)
+    const hasLetter = /[a-zA-Z]/.test(dto.password);
+    const hasNumber = /[0-9]/.test(dto.password);
+    if (!hasLetter || !hasNumber) {
+      throw new BadRequestException('Password must contain at least one letter and one number');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 12); // Increased salt rounds from 10 to 12 for better security
 
     const user = await this.prisma.user.create({
       data: {
@@ -180,10 +192,19 @@ export class UsersService {
       if (!dto.password.trim()) {
         throw new BadRequestException('Password cannot be empty');
       }
-      if (dto.password.length < 6) {
-        throw new BadRequestException('Password must be at least 6 characters long');
+      // Validate password strength
+      if (dto.password.length < 8) {
+        throw new BadRequestException('Password must be at least 8 characters long');
       }
-      updateData.password = await bcrypt.hash(dto.password, 10);
+      
+      // Check password complexity (at least one letter and one number)
+      const hasLetter = /[a-zA-Z]/.test(dto.password);
+      const hasNumber = /[0-9]/.test(dto.password);
+      if (!hasLetter || !hasNumber) {
+        throw new BadRequestException('Password must contain at least one letter and one number');
+      }
+
+      updateData.password = await bcrypt.hash(dto.password, 12); // Increased salt rounds from 10 to 12 for better security
     }
 
     const updated = await this.prisma.user.update({

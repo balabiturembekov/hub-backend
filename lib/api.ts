@@ -361,7 +361,45 @@ class ApiClient {
   }
 
   async updateTimeEntry(id: string, data: Partial<TimeEntry>): Promise<TimeEntry> {
-    const response = await this.client.patch(`/time-entries/${id}`, data);
+    // Filter out fields that should not be sent to backend
+    // DTO only accepts: projectId, startTime, endTime, duration, description, status
+    const payload: any = {};
+    
+    if (data.projectId !== undefined) {
+      payload.projectId = data.projectId;
+    }
+    
+    if (data.startTime !== undefined) {
+      payload.startTime = data.startTime instanceof Date 
+        ? data.startTime.toISOString() 
+        : data.startTime;
+    }
+    
+    if (data.endTime !== undefined) {
+      payload.endTime = data.endTime instanceof Date 
+        ? data.endTime.toISOString() 
+        : data.endTime;
+    }
+    
+    if (data.duration !== undefined) {
+      payload.duration = data.duration;
+    }
+    
+    if (data.description !== undefined) {
+      payload.description = data.description;
+    }
+    
+    // Convert status from lowercase to UPPERCASE (backend expects RUNNING, PAUSED, STOPPED)
+    if (data.status !== undefined) {
+      const statusMap: Record<string, string> = {
+        'running': 'RUNNING',
+        'paused': 'PAUSED',
+        'stopped': 'STOPPED',
+      };
+      payload.status = statusMap[data.status] || data.status.toUpperCase();
+    }
+    
+    const response = await this.client.patch(`/time-entries/${id}`, payload);
     return this.mapTimeEntry(response.data);
   }
 

@@ -168,7 +168,16 @@ export function useSocket() {
                                    state.currentUser?.role === 'OWNER' || 
                                    state.currentUser?.role === 'SUPER_ADMIN';
           if (isCurrentUserEntry || canSeeAllEntries) {
-            updateTimeEntryRef.current(entry.id, entry);
+            // Only send fields that are allowed in UpdateTimeEntryDto
+            // Filter out: id, userId, userName, projectName
+            const updateData: Partial<typeof entry> = {};
+            if (entry.projectId !== undefined) updateData.projectId = entry.projectId;
+            if (entry.startTime !== undefined) updateData.startTime = entry.startTime;
+            if (entry.endTime !== undefined) updateData.endTime = entry.endTime;
+            if (entry.duration !== undefined) updateData.duration = entry.duration;
+            if (entry.description !== undefined) updateData.description = entry.description;
+            if (entry.status !== undefined) updateData.status = entry.status;
+            updateTimeEntryRef.current(entry.id, updateData);
           } else {
             // Update in timeEntries but don't affect activeTimeEntry
             useStore.setState((prevState) => ({

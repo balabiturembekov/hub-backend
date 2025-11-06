@@ -13,6 +13,18 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
+    // Validate password strength
+    if (dto.password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+    
+    // Check password complexity (at least one letter and one number)
+    const hasLetter = /[a-zA-Z]/.test(dto.password);
+    const hasNumber = /[0-9]/.test(dto.password);
+    if (!hasLetter || !hasNumber) {
+      throw new BadRequestException('Password must contain at least one letter and one number');
+    }
+
     if (dto.companyDomain) {
       const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
       if (!domainRegex.test(dto.companyDomain)) {
@@ -29,7 +41,7 @@ export class AuthService {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12); // Increased salt rounds from 10 to 12 for better security
     const userRole = dto.role === 'SUPER_ADMIN' ? 'OWNER' : dto.role || 'OWNER';
 
     const result = await this.prisma.$transaction(async (tx) => {

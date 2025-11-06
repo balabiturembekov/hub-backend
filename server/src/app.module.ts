@@ -86,8 +86,8 @@ import { CacheModule } from './cache/cache.module';
     }),
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
-        limit: 10000,
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute (more reasonable for production)
       },
     ]),
     PrismaModule,

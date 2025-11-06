@@ -80,9 +80,14 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins.length > 0 
       ? (origin, callback) => {
-          // Allow requests with no origin (mobile apps, Postman, etc.)
+          // In production, reject requests with no origin for security
           if (!origin) {
-            console.log('CORS: Allowing request with no origin');
+            if (process.env.NODE_ENV === 'production') {
+              console.warn('CORS: Rejecting request with no origin in production');
+              return callback(new Error('CORS: Origin is required in production'), false);
+            }
+            // Allow in development for testing
+            console.log('CORS: Allowing request with no origin (development mode)');
             return callback(null, true);
           }
           
