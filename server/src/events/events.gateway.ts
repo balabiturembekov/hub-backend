@@ -52,13 +52,18 @@ import { PrismaService } from '../prisma/prisma.service';
       const allowedOrigins = getAllowedOrigins();
       
       // Allow requests with no origin
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        console.log('WebSocket CORS: Allowing connection with no origin');
+        return callback(null, true);
+      }
       
       if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        console.log(`WebSocket CORS: Allowing origin: ${origin}`);
         callback(null, true);
       } else {
         console.warn(`WebSocket CORS: Blocked origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        console.warn(`WebSocket CORS: Allowed origins are:`, allowedOrigins);
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
       }
     },
     credentials: true,

@@ -69,18 +69,31 @@ async function bootstrap() {
 
   const allowedOrigins = getAllowedOrigins();
 
+  // Log allowed origins for debugging
+  console.log('🔒 CORS Configuration:', {
+    allowedOrigins,
+    nodeEnv: process.env.NODE_ENV,
+    frontendUrl: process.env.FRONTEND_URL,
+    frontendIp: process.env.FRONTEND_IP,
+  });
+
   app.enableCors({
     origin: allowedOrigins.length > 0 
       ? (origin, callback) => {
           // Allow requests with no origin (mobile apps, Postman, etc.)
-          if (!origin) return callback(null, true);
+          if (!origin) {
+            console.log('CORS: Allowing request with no origin');
+            return callback(null, true);
+          }
           
           if (allowedOrigins.includes(origin)) {
+            console.log(`CORS: Allowing origin: ${origin}`);
             callback(null, true);
           } else {
             // Log for debugging
             console.warn(`CORS: Blocked origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            console.warn(`CORS: Allowed origins are:`, allowedOrigins);
+            callback(new Error(`Not allowed by CORS. Origin: ${origin}`));
           }
         }
       : true, // Fallback: allow all in development if no origins specified

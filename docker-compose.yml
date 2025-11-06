@@ -87,9 +87,10 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://hubnity.automatonsoft.de/api}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://hubnity.automatonsoft.de}
-      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-https://hubnity.automatonsoft.de}
+      # API URLs - use IP if accessing via IP, domain if via domain
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://94.126.201.244:3001/api}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://94.126.201.244:3001}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://94.126.201.244:3002}
       # Sentry configuration
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-https://70dca710f304ae557f050c47cb4b69b7@o4510310717784064.ingest.de.sentry.io/4510310720077904}
       SENTRY_ORG: automatonsoft
