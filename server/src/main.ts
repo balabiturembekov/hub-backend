@@ -80,11 +80,19 @@ async function bootstrap() {
   app.enableCors({
     origin: allowedOrigins.length > 0 
       ? (origin, callback) => {
-          // In production, reject requests with no origin for security
+          // Allow requests with no origin for:
+          // 1. Health checks (GET /api)
+          // 2. OPTIONS preflight requests
+          // 3. Internal requests from Nginx/Docker
           if (!origin) {
+            // Get request info from callback context (if available)
+            // For now, allow in production for health checks and internal requests
+            // Nginx should add Origin header, but we allow without it for compatibility
             if (process.env.NODE_ENV === 'production') {
-              console.warn('CORS: Rejecting request with no origin in production');
-              return callback(new Error('CORS: Origin is required in production'), false);
+              // In production, allow requests without origin for health checks
+              // but log them for monitoring
+              console.log('CORS: Allowing request with no origin (likely health check or internal request)');
+              return callback(null, true);
             }
             // Allow in development for testing
             console.log('CORS: Allowing request with no origin (development mode)');
