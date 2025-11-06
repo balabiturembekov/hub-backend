@@ -7,7 +7,60 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Get allowed origins (same logic as main.ts)
+      const getAllowedOrigins = (): string[] => {
+        if (process.env.NODE_ENV === 'production') {
+          const origins: string[] = [];
+          
+          if (process.env.FRONTEND_URL) {
+            origins.push(process.env.FRONTEND_URL);
+            const urlWithoutProtocol = process.env.FRONTEND_URL.replace(/^https?:\/\//, '');
+            origins.push(`http://${urlWithoutProtocol}`);
+            origins.push(`https://${urlWithoutProtocol}`);
+          }
+          
+          if (process.env.FRONTEND_IP) {
+            const ip = process.env.FRONTEND_IP;
+            origins.push(`http://${ip}`);
+            origins.push(`http://${ip}:3002`);
+            origins.push(`https://${ip}`);
+            origins.push(`https://${ip}:3002`);
+          }
+          
+          if (process.env.ALLOWED_ORIGINS) {
+            const additional = process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
+            origins.push(...additional);
+          }
+          
+          return origins.length > 0 ? [...new Set(origins)] : [];
+        } else {
+          return [
+            process.env.FRONTEND_URL || 'http://localhost:3002',
+            'http://localhost:3000',
+            'http://localhost:3002',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:3002',
+            'ws://localhost:3000',
+            'ws://localhost:3002',
+            'ws://127.0.0.1:3000',
+            'ws://127.0.0.1:3002',
+          ].filter(Boolean);
+        }
+      };
+      
+      const allowedOrigins = getAllowedOrigins();
+      
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`WebSocket CORS: Blocked origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   },
   namespace: '/',
