@@ -220,6 +220,17 @@ export function TimeTracker() {
         // duration is cumulative time already tracked (from previous pause cycles)
         // Calculate current session time: (now - start) gives time since last start/resume
         const currentSessionSeconds = Math.floor((now - start) / 1000);
+        
+        // Log warning if elapsed time is negative (possible clock sync issue)
+        if (currentSessionSeconds < 0) {
+          console.warn('[TimeTracker] Negative elapsed time detected - possible clock synchronization issue', {
+            entryId: activeTimeEntry.id,
+            startTime: startTime,
+            now: currentTime,
+            elapsed: currentSessionSeconds,
+          });
+        }
+        
         const elapsedSeconds = Math.max(0, currentSessionSeconds + duration);
         
         if (isFinite(elapsedSeconds) && !isNaN(elapsedSeconds)) {
@@ -291,7 +302,7 @@ export function TimeTracker() {
     
     // Validate that selected project exists and is active (prevent using invalid project IDs)
     if (selectedProject !== 'none') {
-      // Check if projects array is valid
+      // Validate projects array before using find
       if (!projects || !Array.isArray(projects)) {
         toast({
           title: 'Error',
@@ -312,6 +323,34 @@ export function TimeTracker() {
       }
     }
     
+    // Start screenshot capture BEFORE async operations to ensure user gesture is still valid
+    // getDisplayMedia must be called from a user gesture handler, and the window can expire
+    // if we wait for async operations (network requests, state updates, etc.)
+    let screenshotCapturePromise: Promise<void> | null = null;
+    if (screenshotSettings.enabled) {
+      console.log('[TimeTracker] Starting screenshot capture immediately (before timer start) to preserve user gesture');
+      // Call getDisplayMedia immediately while user gesture is still valid
+      // Use requestAnimationFrame for minimal delay (faster than setTimeout)
+      screenshotCapturePromise = new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          // Start capture immediately - it will wait for timeEntryId to be available
+          startScreenshotCapture().catch((error) => {
+            console.error('[TimeTracker] Failed to start screenshot capture:', error);
+            // If error is InvalidStateError, it means user gesture expired (shouldn't happen now)
+            if (error?.name === 'InvalidStateError') {
+              toast({
+                title: 'Screen Capture Required',
+                description: 'Please click the "Start Screenshot Capture" button to enable screenshots.',
+                variant: 'default',
+              });
+            }
+          }).finally(() => {
+            resolve();
+          });
+        });
+      });
+    }
+    
     try {
       const projectId = selectedProject === 'none' ? undefined : selectedProject;
       console.log('Starting timer with:', { userId: currentUser.id, projectId });
@@ -327,67 +366,10 @@ export function TimeTracker() {
         setSelectedProject('none');
       }
       
-      // Start screenshot capture if enabled (must be called from user gesture handler)
-      // Use requestAnimationFrame to ensure state has updated
-      if (screenshotSettings.enabled) {
-        // Get fresh screenshot state to avoid race conditions
-        const freshState = useStore.getState();
-        const freshIsCapturing = freshState.activeTimeEntry?.id === freshActiveEntry?.id 
-          ? isScreenCapturing 
-          : false; // If entry changed, assume not capturing yet
-        
-        if (!freshIsCapturing && freshActiveEntry?.status === 'running' && freshActiveEntry?.id) {
-          const intervalMs = (screenshotSettings.interval || 60) * 1000; // Fallback to 60s if undefined
-          console.log('[TimeTracker] Attempting to start screenshot capture:', {
-            enabled: screenshotSettings.enabled,
-            isCapturing: freshIsCapturing,
-            hasPermission: hasScreenshotPermission,
-            intervalSeconds: screenshotSettings.interval,
-            intervalMs: intervalMs,
-            intervalMinutes: intervalMs / 60000,
-            entryId: freshActiveEntry.id,
-            entryStatus: freshActiveEntry.status
-          });
-          
-          // Start screenshot capture immediately after timer starts (while user gesture is still valid)
-          // getDisplayMedia must be called from a user gesture handler, so we call it immediately
-          // We use a small delay only to ensure state has propagated, but keep it minimal (< 1 second)
-          if (screenshotSettings.enabled && freshActiveEntry?.status === 'running' && freshActiveEntry?.id) {
-            // Call getDisplayMedia immediately while user gesture is still valid
-            // Use setTimeout with minimal delay (10ms) just to ensure state propagation
-            // This is still within the user gesture window (typically ~5 seconds)
-            setTimeout(() => {
-              const finalState = useStore.getState();
-              const finalActiveEntry = finalState.activeTimeEntry;
-              // Double-check conditions before starting (race condition protection)
-              if (finalActiveEntry?.status === 'running' && 
-                  finalActiveEntry?.id && 
-                  finalActiveEntry.id.trim() !== '' &&
-                  finalActiveEntry.id === freshActiveEntry?.id &&
-                  screenshotSettings.enabled) {
-                console.log('[TimeTracker] Starting screenshot capture (within user gesture window)');
-                startScreenshotCapture().catch((error) => {
-                  console.error('[TimeTracker] Failed to start screenshot capture:', error);
-                  // If error is InvalidStateError, it means user gesture expired
-                  if (error?.name === 'InvalidStateError') {
-                    toast({
-                      title: 'Screen Capture Required',
-                      description: 'Please click the "Start Screenshot Capture" button to enable screenshots.',
-                      variant: 'default',
-                    });
-                  }
-                });
-              } else {
-                console.warn('[TimeTracker] Cannot start screenshot capture:', {
-                  status: finalActiveEntry?.status,
-                  id: finalActiveEntry?.id,
-                  entryIdMatch: finalActiveEntry?.id === freshActiveEntry?.id,
-                  enabled: screenshotSettings.enabled
-                });
-              }
-            }, 10); // Minimal delay - just enough for state propagation
-          }
-        }
+      // Screenshot capture was already started above (before async operations)
+      // Wait for it to complete (or fail) to ensure proper state
+      if (screenshotCapturePromise) {
+        await screenshotCapturePromise;
       }
       
       // Check if screenshot permission was revoked (only after successful timer start)
@@ -402,6 +384,26 @@ export function TimeTracker() {
       });
     } catch (error: unknown) {
       console.error('Failed to start timer:', error);
+      
+      // CRITICAL FIX: If timer failed to start but screenshot capture was initiated,
+      // stop the screenshot capture to prevent orphaned stream
+      if (screenshotCapturePromise && screenshotSettings.enabled) {
+        console.log('[TimeTracker] Timer failed, stopping screenshot capture');
+        try {
+          // Wait for screenshot capture to complete (or fail), then stop it
+          await screenshotCapturePromise;
+          if (isScreenCapturing) {
+            stopScreenshotCapture();
+          }
+        } catch (screenshotError) {
+          console.error('[TimeTracker] Error stopping screenshot capture after timer failure:', screenshotError);
+          // Try to stop anyway
+          if (isScreenCapturing) {
+            stopScreenshotCapture();
+          }
+        }
+      }
+      
       const errorMessage = (error as { isNetworkError?: boolean; response?: { data?: { message?: string } }; message?: string }).isNetworkError 
         ? 'Network error: Could not connect to server. Please check if the backend is running.'
         : (error as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message || (error as { message?: string }).message || 'Failed to start timer';
@@ -711,12 +713,15 @@ export function TimeTracker() {
 
         {!activeTimeEntry ? (
           <div className="space-y-4">
-            {currentUser?.role === 'employee' && (!projects || !Array.isArray(projects) || projects.filter((p) => p.status === 'active').length === 0) ? (
+            {/* Show warning only for employees with no active projects */}
+            {currentUser?.role === 'employee' && 
+             (!projects || !Array.isArray(projects) || projects.filter((p) => p.status === 'active').length === 0) ? (
               <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
                 <p className="font-medium">No Active Projects</p>
                 <p className="mt-1">Please contact your administrator to create a project before starting the timer.</p>
               </div>
             ) : (
+              /* Always show Select for employees with projects, and for non-employees */
               <Select 
                 value={selectedProject || 'none'} 
                 onValueChange={(value) => {
@@ -731,10 +736,12 @@ export function TimeTracker() {
                   } />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* Show "No project" option only for non-employees */}
                   {currentUser?.role !== 'employee' && (
                     <SelectItem value="none">No project</SelectItem>
                   )}
-                  {projects
+                  {/* Show active projects for all users */}
+                  {projects && Array.isArray(projects) && projects
                     .filter((p) => p.status === 'active')
                     .map((project) => (
                       <SelectItem key={project.id} value={project.id}>

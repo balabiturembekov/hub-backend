@@ -49,7 +49,8 @@ export function HourlyChart() {
       const hourStart = hour.getTime();
       const hourEnd = hourStart + 3600000;
       
-      let entriesInHour = timeEntries.filter((entry) => {
+      // Validate timeEntries array before filtering
+      let entriesInHour = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter((entry) => {
         try {
           const entryStartDate = new Date(entry.startTime);
           if (isNaN(entryStartDate.getTime())) return false;

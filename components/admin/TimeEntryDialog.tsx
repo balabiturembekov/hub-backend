@@ -33,7 +33,7 @@ interface TimeEntryDialogProps {
 }
 
 export function TimeEntryDialog({ open, onOpenChange, entry }: TimeEntryDialogProps) {
-  const { updateTimeEntry, projects, isLoading } = useStore();
+  const { updateTimeEntry, projects, users, isLoading } = useStore();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     projectId: '',
@@ -237,8 +237,18 @@ export function TimeEntryDialog({ open, onOpenChange, entry }: TimeEntryDialogPr
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No project</SelectItem>
-                  {projects
+                  {/* Only show "No project" option if entry doesn't belong to an employee */}
+                  {(() => {
+                    if (!entry?.userId) return <SelectItem value="none">No project</SelectItem>;
+                    const entryUser = users?.find((u) => u.id === entry.userId);
+                    const isEmployee = entryUser?.role === 'employee';
+                    // Don't show "No project" for employees - project is required
+                    if (!isEmployee) {
+                      return <SelectItem value="none">No project</SelectItem>;
+                    }
+                    return null;
+                  })()}
+                  {projects && Array.isArray(projects) && projects
                     .filter((p) => p.status === 'active')
                     .map((project) => (
                       <SelectItem key={project.id} value={project.id}>

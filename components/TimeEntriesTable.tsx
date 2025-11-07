@@ -59,6 +59,10 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
   // Validate projectFilter - reset to 'all' if project was deleted or archived
   useEffect(() => {
     if (projectFilter !== 'all' && projectFilter !== 'none') {
+      // Validate projects array before using find
+      if (!projects || !Array.isArray(projects)) {
+        return;
+      }
       const projectExists = projects.find((p) => p.id === projectFilter && p.status === 'active');
       if (!projectExists) {
         setProjectFilter('all');
@@ -69,6 +73,10 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
   // Validate userFilter - reset to 'all' if user was deleted or inactive
   useEffect(() => {
     if (userFilter !== 'all') {
+      // Validate users array before using find
+      if (!users || !Array.isArray(users)) {
+        return;
+      }
       const userExists = users.find((u) => u.id === userFilter && u.status === 'active');
       if (!userExists) {
         setUserFilter('all');
@@ -182,10 +190,11 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
   };
 
   const handleDeleteClick = (entry: TimeEntry) => {
-    if (entry.status === 'running') {
+    // Prevent deleting active time entries (running or paused)
+    if (entry.status === 'running' || entry.status === 'paused') {
       toast({
         title: 'Error',
-        description: 'Cannot delete a running time entry. Stop it first.',
+        description: 'Cannot delete an active time entry. Please stop it first.',
         variant: 'destructive',
       });
       return;
@@ -262,7 +271,7 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All users</SelectItem>
-                {users.map((user) => (
+                {users && Array.isArray(users) && users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}
                   </SelectItem>

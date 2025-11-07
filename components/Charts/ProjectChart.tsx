@@ -21,14 +21,16 @@ export function ProjectChart() {
   const { timeEntries, projects, isLoading, currentUser } = useStore();
 
   // Filter time entries by user if not admin/owner/super_admin
-  let filteredEntries = timeEntries.filter((e) => e.status === 'stopped');
+  // Validate timeEntries array before filtering
+  let filteredEntries = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter((e) => e.status === 'stopped');
   if (currentUser?.role !== 'admin' && 
       currentUser?.role !== 'OWNER' && 
       currentUser?.role !== 'SUPER_ADMIN') {
     filteredEntries = filteredEntries.filter((e) => e.userId === currentUser?.id);
   }
 
-  const projectHours = projects
+  // Validate projects array before filtering
+  const projectHours = (projects && Array.isArray(projects) ? projects : [])
     .filter((p) => p.status === 'active')
     .map((project) => {
       const entries = filteredEntries.filter((e) => e.projectId === project.id);

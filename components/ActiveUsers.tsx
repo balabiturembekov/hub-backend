@@ -50,9 +50,10 @@ export function ActiveUsers() {
     return null;
   }
 
-  const activeUsers = users
+  // Validate users and timeEntries arrays before filtering
+  const activeUsers = (users && Array.isArray(users) ? users : [])
     .filter((user) => {
-      const hasActiveEntry = timeEntries.some(
+      const hasActiveEntry = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).some(
         (entry) => entry.userId === user.id && entry.status === 'running'
       );
       return hasActiveEntry;
@@ -116,7 +117,7 @@ export function ActiveUsers() {
       <CardContent>
         <div className="space-y-4">
           {activeUsers.map((user) => {
-            const entry = timeEntries.find(
+            const entry = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).find(
               (e) => e.userId === user.id && e.status === 'running'
             );
             if (!entry) return null;

@@ -32,7 +32,8 @@ export function MonthlyChart() {
     dayEnd.setHours(23, 59, 59, 999);
 
     // Filter entries for this day
-    let entriesInDay = timeEntries.filter((entry) => {
+    // Validate timeEntries array before filtering
+    let entriesInDay = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter((entry) => {
       try {
         const entryDate = new Date(entry.startTime);
         if (isNaN(entryDate.getTime())) return false;

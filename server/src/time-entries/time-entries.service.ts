@@ -38,6 +38,11 @@ export class TimeEntriesService {
       throw new BadRequestException('Cannot create time entry for inactive user');
     }
 
+    // CRITICAL: For employees, project is required
+    if (user.role === UserRole.EMPLOYEE && !dto.projectId) {
+      throw new BadRequestException('Project is required for employees. Please select a project before starting the timer.');
+    }
+
     if (dto.projectId) {
       const project = await this.prisma.project.findFirst({
         where: {
@@ -289,6 +294,21 @@ export class TimeEntriesService {
 
     if (dto.projectId !== undefined) {
       if (dto.projectId === null || dto.projectId === '') {
+        // CRITICAL: For employees, project cannot be removed
+        const entryUser = await this.prisma.user.findFirst({
+          where: {
+            id: entry.userId,
+            companyId,
+          },
+          select: {
+            role: true,
+          },
+        });
+
+        if (entryUser?.role === UserRole.EMPLOYEE) {
+          throw new BadRequestException('Project is required for employees. Cannot remove project from time entry.');
+        }
+
         updateData.projectId = null;
       } else {
         const project = await this.prisma.project.findFirst({
@@ -364,9 +384,15 @@ export class TimeEntriesService {
         if (updateData.duration < 0) {
           throw new BadRequestException('Duration cannot be negative. Please check startTime and endTime values.');
         }
+        if (updateData.duration > 2147483647) {
+          throw new BadRequestException('Duration exceeds maximum allowed value (68+ years). Please check startTime and endTime values.');
+        }
       } else {
         if (dto.duration < 0) {
           throw new BadRequestException('Duration cannot be negative');
+        }
+        if (dto.duration > 2147483647) {
+          throw new BadRequestException('Duration exceeds maximum allowed value (68+ years)');
         }
       }
 
@@ -463,6 +489,21 @@ export class TimeEntriesService {
       const start = new Date(entry.startTime).getTime();
       const end = endTime.getTime();
       const elapsed = Math.floor((end - start) / 1000);
+      
+      // Log warning if elapsed time is negative (possible clock sync issue)
+      if (elapsed < 0) {
+        this.logger.warn(
+          {
+            entryId: entry.id,
+            userId: entry.userId,
+            startTime: entry.startTime,
+            endTime: endTime.toISOString(),
+            elapsed,
+          },
+          'Negative elapsed time detected in stop() - possible clock synchronization issue',
+        );
+      }
+      
       const safeElapsed = Math.max(0, elapsed);
       duration += safeElapsed;
 
@@ -565,6 +606,21 @@ export class TimeEntriesService {
     const now = new Date();
     const start = new Date(entry.startTime).getTime();
     const elapsed = Math.floor((now.getTime() - start) / 1000);
+    
+    // Log warning if elapsed time is negative (possible clock sync issue)
+    if (elapsed < 0) {
+      this.logger.warn(
+        {
+          entryId: entry.id,
+          userId: entry.userId,
+          startTime: entry.startTime,
+          now: now.toISOString(),
+          elapsed,
+        },
+        'Negative elapsed time detected in pause() - possible clock synchronization issue',
+      );
+    }
+    
     const safeElapsed = Math.max(0, elapsed);
     const newDuration = entry.duration + safeElapsed;
 

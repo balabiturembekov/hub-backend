@@ -254,15 +254,22 @@ export function useScreenCapture({
     const currentTimeEntryId = timeEntryIdRef.current || timeEntryId;
     const currentEnabled = enabledRef.current;
     
-    // Validate timeEntryId (bug48)
-    if (!currentTimeEntryId || 
-        typeof currentTimeEntryId !== 'string' || 
-        currentTimeEntryId.trim() === '') {
-      console.log('[Screenshot] Cannot start capture - invalid timeEntryId:', { 
+    // CRITICAL FIX: Call getDisplayMedia BEFORE checking timeEntryId to preserve user gesture
+    // getDisplayMedia must be called from a user gesture handler, and the window can expire
+    // if we wait for async operations. We'll get the stream first, then use it after timeEntryId is available.
+    // If timeEntryId is not available yet, we'll still get the stream and wait for it.
+    
+    // Validate timeEntryId - but allow starting capture even without it (stream will be obtained first)
+    const hasValidTimeEntryId = currentTimeEntryId && 
+        typeof currentTimeEntryId === 'string' && 
+        currentTimeEntryId.trim() !== '';
+    
+    if (!hasValidTimeEntryId) {
+      console.log('[Screenshot] Starting capture without timeEntryId (will wait for it):', { 
         timeEntryId: currentTimeEntryId,
         type: typeof currentTimeEntryId
       });
-      return;
+      // Continue - we'll get the stream first, then wait for timeEntryId
     }
     
     // Bug 86: Check global singleton for existing active stream
@@ -471,7 +478,16 @@ export function useScreenCapture({
       // Bug 86: Update global singleton
       globalScreenCapture.setStream(stream);
       globalScreenCapture.setIsCapturing(true);
-      globalScreenCapture.setTimeEntryId(currentTimeEntryId); // Bug 94: Store timeEntryId
+      
+      // Store timeEntryId if available, otherwise wait for it
+      if (hasValidTimeEntryId && currentTimeEntryId) {
+        globalScreenCapture.setTimeEntryId(currentTimeEntryId); // Bug 94: Store timeEntryId
+      } else {
+        console.log('[Screenshot] Stream obtained, waiting for timeEntryId...');
+        // Don't set timeEntryId yet - it will be set when available
+        globalScreenCapture.setTimeEntryId(null);
+      }
+      
       setHasPermission(true);
       // isCapturingRef already set above (bug89), just update state
       setIsCapturing(true);
@@ -658,7 +674,8 @@ export function useScreenCapture({
 
       // Define captureFrame function locally to avoid closure issues
       const captureFrameLocal = async () => {
-        const currentTimeEntryId = timeEntryIdRef.current;
+        // Get latest timeEntryId (may have been set after stream was obtained)
+        const currentTimeEntryId = globalScreenCapture.getTimeEntryId() || timeEntryIdRef.current;
         if (!videoRef.current || !canvasRef.current || !currentTimeEntryId || !isCapturingRef.current) {
           console.log('[Screenshot] Cannot capture frame:', {
             hasVideo: !!videoRef.current,
@@ -1734,6 +1751,27 @@ export function useScreenCapture({
   // Track previous timeEntryId to detect changes
   const prevTimeEntryIdRef = useRef<string | null>(timeEntryId);
   const isInitialMountRef = useRef(true);
+  
+  // CRITICAL FIX: Update global timeEntryId when it becomes available
+  // This allows capture to start even if stream was obtained before timeEntryId was available
+  useEffect(() => {
+    // If we have an active stream, update timeEntryId (even if it was already set)
+    // This handles cases where timeEntryId changes (e.g., new timer started)
+    if (timeEntryId && 
+        typeof timeEntryId === 'string' && 
+        timeEntryId.trim() !== '' &&
+        globalScreenCapture.hasActiveStream()) {
+      const currentGlobalTimeEntryId = globalScreenCapture.getTimeEntryId();
+      // Update if timeEntryId is different or if it wasn't set before
+      if (currentGlobalTimeEntryId !== timeEntryId) {
+        console.log('[Screenshot] timeEntryId updated in global singleton:', {
+          old: currentGlobalTimeEntryId,
+          new: timeEntryId
+        });
+        globalScreenCapture.setTimeEntryId(timeEntryId);
+      }
+    }
+  }, [timeEntryId]);
   
   // Auto-stop when disabled or timeEntryId changes
   // NOTE: We don't auto-start here because getDisplayMedia must be called from a user gesture handler

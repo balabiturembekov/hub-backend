@@ -48,6 +48,10 @@ export function ExportDialog({
   // Validate projectFilter - reset to 'all' if project was deleted or archived
   useEffect(() => {
     if (projectFilter !== 'all' && projectFilter !== 'none') {
+      // Validate projects array before using find
+      if (!projects || !Array.isArray(projects)) {
+        return;
+      }
       const projectExists = projects.find((p) => p.id === projectFilter && p.status === 'active');
       if (!projectExists) {
         setProjectFilter('all');
@@ -58,6 +62,10 @@ export function ExportDialog({
   // Validate userFilter - reset to 'all' if user was deleted or inactive
   useEffect(() => {
     if (userFilter !== 'all') {
+      // Validate users array before using find
+      if (!users || !Array.isArray(users)) {
+        return;
+      }
       const userExists = users.find((u) => u.id === userFilter && u.status === 'active');
       if (!userExists) {
         setUserFilter('all');
@@ -213,7 +221,7 @@ export function ExportDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All users</SelectItem>
-                      {users.map((user) => (
+                      {users && Array.isArray(users) && users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
                         </SelectItem>
@@ -232,7 +240,7 @@ export function ExportDialog({
                   <SelectContent>
                     <SelectItem value="all">All projects</SelectItem>
                     <SelectItem value="none">No project</SelectItem>
-                    {projects
+                    {projects && Array.isArray(projects) && projects
                       .filter((p) => p.status === 'active')
                       .map((project) => (
                         <SelectItem key={project.id} value={project.id}>

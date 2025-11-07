@@ -257,9 +257,27 @@ export const useStore = create<AppState>((set, get) => ({
       
       set({ isLoading: true, error: null });
       const projects = await api.getProjects();
+      // Validate that projects is an array
+      if (!Array.isArray(projects)) {
+        console.error('Invalid projects response:', projects);
+        set({ 
+          error: 'Invalid projects data received from server', 
+          isLoading: false 
+        });
+        return;
+      }
       set({ projects, isLoading: false });
     } catch (error: any) {
-      set({ error: error.message || 'Failed to load projects', isLoading: false });
+      // Don't clear existing projects on error - keep previous state
+      // This prevents UI from breaking if a temporary network error occurs
+      const currentState = get();
+      console.error('Failed to load projects:', error);
+      set({ 
+        error: error.message || 'Failed to load projects', 
+        isLoading: false,
+        // Keep existing projects if available, otherwise set to empty array
+        projects: currentState.projects.length > 0 ? currentState.projects : []
+      });
     }
   },
   

@@ -57,6 +57,20 @@ export class StatsProcessor extends WorkerHost {
           try {
             const start = new Date(entry.startTime).getTime();
             const elapsed = Math.floor((now.getTime() - start) / 1000);
+            
+            // Log warning if elapsed time is negative (possible clock sync issue)
+            if (elapsed < 0) {
+              this.logger.warn(
+                {
+                  entryId: entry.id,
+                  startTime: entry.startTime,
+                  now: now.toISOString(),
+                  elapsed,
+                },
+                'Negative elapsed time detected in stats calculation - possible clock synchronization issue',
+              );
+            }
+            
             entrySeconds = (entry.duration ?? 0) + Math.max(0, elapsed);
           } catch {
             entrySeconds = entry.duration ?? 0;

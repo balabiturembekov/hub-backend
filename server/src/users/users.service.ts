@@ -179,6 +179,27 @@ export class UsersService {
       delete updateData.companyId;
     }
 
+    // Check for active time entries before deactivating user
+    if (dto.status === 'INACTIVE' && existingUser.status === 'ACTIVE') {
+      const activeEntries = await this.prisma.timeEntry.findMany({
+        where: {
+          userId: id,
+          status: {
+            in: ['RUNNING', 'PAUSED'],
+          },
+          user: {
+            companyId,
+          },
+        },
+      });
+
+      if (activeEntries.length > 0) {
+        throw new BadRequestException(
+          `Cannot deactivate user with active time entries. Please stop all running/paused timers first (${activeEntries.length} active timer${activeEntries.length > 1 ? 's' : ''}).`,
+        );
+      }
+    }
+
     if (dto.hourlyRate !== undefined) {
       if (dto.hourlyRate < 0) {
         throw new BadRequestException('Hourly rate cannot be negative');

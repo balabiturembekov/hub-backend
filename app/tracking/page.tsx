@@ -32,7 +32,7 @@ import { formatDurationFull } from '@/lib/utils';
 
 export default function TrackingPage() {
   const router = useRouter();
-  const { timeEntries, loadTimeEntries, currentUser, users, projects, initializeAuth, loadScreenshotSettings } = useStore();
+  const { timeEntries, loadTimeEntries, currentUser, users, projects, initializeAuth, loadScreenshotSettings, loadProjects } = useStore();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   // Initialize with 0 to avoid hydration mismatch, set in useEffect
@@ -85,9 +85,10 @@ export default function TrackingPage() {
       // Check if user is already loaded in store (from previous page)
       const existingUser = useStore.getState().currentUser;
       if (existingUser) {
-        // User is already loaded, just load time entries and screenshot settings
+        // User is already loaded, just load projects, time entries and screenshot settings
         setIsInitializing(false);
         await Promise.all([
+          loadProjects(),
           loadTimeEntries(),
           loadScreenshotSettings(),
         ]);
@@ -115,6 +116,7 @@ export default function TrackingPage() {
           if (userFromStorage) {
             useStore.setState({ currentUser: userFromStorage });
             await Promise.all([
+              loadProjects(),
               loadTimeEntries(),
               loadScreenshotSettings(),
             ]);
@@ -127,6 +129,7 @@ export default function TrackingPage() {
 
         // Load data if authenticated
         await Promise.all([
+          loadProjects(),
           loadTimeEntries(),
           loadScreenshotSettings(),
         ]);
@@ -146,7 +149,7 @@ export default function TrackingPage() {
       console.error('Unhandled error in tracking init:', error);
       setIsInitializing(false);
     });
-  }, [router, initializeAuth, loadTimeEntries, loadScreenshotSettings]);
+  }, [router, initializeAuth, loadProjects, loadTimeEntries, loadScreenshotSettings]);
 
   // Calculate today's entries and hours (memoized for performance)
   // IMPORTANT: This hook MUST be called before any conditional returns to follow Rules of Hooks
