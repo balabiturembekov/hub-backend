@@ -45,7 +45,7 @@ export class StatsProcessor extends WorkerHost {
             companyId,
           },
         },
-        select: { duration: true, status: true, startTime: true },
+        select: { id: true, duration: true, status: true, startTime: true },
       });
 
       const totalSeconds = totalEntries.reduce((acc, entry) => {
