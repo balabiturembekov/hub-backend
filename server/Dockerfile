@@ -5,8 +5,8 @@ FROM node:20-alpine AS builder
 RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf && \
   echo "nameserver 8.8.4.4" >> /etc/resolv.conf || true
 
-# Install curl for testing CDN connectivity
-RUN apk add --no-cache curl
+# Install curl and bind-tools for testing CDN connectivity
+RUN apk add --no-cache curl bind-tools
 
 WORKDIR /app
 
@@ -28,15 +28,50 @@ RUN npm config set fetch-timeout 300000 && \
 COPY . .
 
 # Test CDN connectivity before generating Prisma Client
-RUN echo "Testing Prisma CDN connectivity..." && \
-  curl -I https://binaries.prisma.sh/ 2>&1 | head -3 || echo "CDN test completed"
+RUN echo "🔍 Testing Prisma CDN connectivity..." && \
+  echo "DNS resolution test:" && \
+  nslookup binaries.prisma.sh || echo "DNS lookup failed" && \
+  echo "HTTP connectivity test:" && \
+  curl -v --max-time 30 --connect-timeout 10 https://binaries.prisma.sh/ 2>&1 | head -10 || echo "CDN connectivity test completed"
 
 # Generate Prisma Client with increased timeouts and retries
 # Set environment variables for Prisma binary download
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
-RUN npx prisma generate --schema=./prisma/schema.prisma || \
-  (echo "Prisma generate failed, retrying..." && sleep 10 && npx prisma generate --schema=./prisma/schema.prisma)
+ENV PRISMA_ENGINES_MIRROR=""
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Increase HTTP timeouts for Prisma binary downloads
+ENV PRISMA_ENGINES_DOWNLOAD_TIMEOUT=300000
+# Retry logic with exponential backoff and better error reporting
+RUN echo "🚀 Starting Prisma Client generation..." && \
+    for i in 1 2 3 4 5; do \
+      echo "" && \
+      echo "════════════════════════════════════════" && \
+      echo "📦 Attempt $i/5: Generating Prisma Client..." && \
+      echo "════════════════════════════════════════" && \
+      (npx prisma generate --schema=./prisma/schema.prisma 2>&1 | tee /tmp/prisma-generate.log) && \
+      if [ -d "node_modules/.prisma" ] && [ -f "node_modules/.prisma/client/index.js" ]; then \
+        echo "✅ Prisma Client generated successfully!" && \
+        ls -lah node_modules/.prisma/client/ | head -5 && \
+        break; \
+      else \
+        echo "❌ Attempt $i failed" && \
+        if [ $i -lt 5 ]; then \
+          echo "⏳ Waiting $((i * 20)) seconds before retry..." && \
+          sleep $((i * 20)); \
+        fi; \
+      fi; \
+    done && \
+    if [ ! -d "node_modules/.prisma" ] || [ ! -f "node_modules/.prisma/client/index.js" ]; then \
+      echo "" && \
+      echo "❌ ERROR: Prisma Client generation failed after 5 attempts" && \
+      echo "Last error log:" && \
+      tail -50 /tmp/prisma-generate.log 2>/dev/null || echo "No log available" && \
+      echo "" && \
+      echo "Network diagnostics:" && \
+      curl -I https://binaries.prisma.sh/ 2>&1 | head -5 || echo "Cannot reach Prisma CDN" && \
+      exit 1; \
+    fi
 
 # Build the application
 RUN npm run build
