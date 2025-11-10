@@ -1788,20 +1788,74 @@ export function useScreenCapture({
     const prevTimeEntryId = prevTimeEntryIdRef.current;
     prevTimeEntryIdRef.current = timeEntryId;
     
-    // Use ref instead of state to check if capturing - state may be stale
-    // Only stop if actually capturing AND conditions require stopping
-    const currentEnabled = enabledRef.current;
-    if (isCapturingRef.current && ((!currentEnabled || !timeEntryId) || timeEntryIdChanged)) {
-      console.log('[Screenshot] Stopping capture due to:', {
-        enabled: currentEnabled,
-        timeEntryId: !!timeEntryId,
-        timeEntryIdChanged,
-        oldTimeEntryId: prevTimeEntryId,
-        newTimeEntryId: timeEntryId,
-        isCapturingFromState: isCapturing,
-        isCapturingFromRef: isCapturingRef.current
-      });
-      stopCaptureRef.current();
+    // CRITICAL FIX: Always check global store state when capture is active
+    // This prevents stopping capture when navigating between pages
+    // Local props may become null/false during navigation, but global state is reliable
+    if (isCapturingRef.current) {
+      // Always check global store first to avoid false stops during navigation
+      try {
+        const state = useStore.getState();
+        const activeTimeEntry = state.activeTimeEntry;
+        const screenshotSettings = state.screenshotSettings;
+        
+        const isTimerActive = activeTimeEntry && 
+                             (activeTimeEntry.status === 'running' || activeTimeEntry.status === 'paused') &&
+                             activeTimeEntry.id &&
+                             screenshotSettings?.screenshotEnabled;
+        
+        const globalTimeEntryId = globalScreenCapture.getTimeEntryId();
+        
+        // If timer is still active globally and timeEntryId matches, don't stop capture
+        // This handles the case when navigating between pages - local props may be stale
+        if (isTimerActive && activeTimeEntry.id === globalTimeEntryId) {
+          // Timer is still active - check if this is a real change or just navigation
+          // If timeEntryId changed but timer is still active with new timeEntryId, that's a real change
+          if (timeEntryIdChanged && timeEntryId && timeEntryId === activeTimeEntry.id) {
+            // timeEntryId changed but matches new active entry - update global and continue
+            console.log('[Screenshot] TimeEntryId changed to new active entry, updating global');
+            globalScreenCapture.setTimeEntryId(timeEntryId);
+            return; // Don't stop capture
+          } else if (!timeEntryIdChanged || (timeEntryId && timeEntryId === globalTimeEntryId)) {
+            // No real change or timeEntryId still matches - keep capture running
+            console.log('[Screenshot] Timer still active globally, keeping capture running (possible navigation)');
+            return; // Don't stop capture
+          }
+        }
+        
+        // Timer stopped globally OR timeEntryId changed to different value - stop capture
+        const currentEnabled = enabledRef.current;
+        const shouldStop = !isTimerActive || (!currentEnabled && !screenshotSettings?.screenshotEnabled) || 
+                          (timeEntryIdChanged && timeEntryId !== activeTimeEntry?.id);
+        
+        if (shouldStop) {
+          console.log('[Screenshot] Stopping capture due to:', {
+            enabled: currentEnabled,
+            globalEnabled: screenshotSettings?.screenshotEnabled,
+            timeEntryId: !!timeEntryId,
+            globalTimeEntryId: !!globalTimeEntryId,
+            activeTimeEntryId: activeTimeEntry?.id,
+            timeEntryIdChanged,
+            oldTimeEntryId: prevTimeEntryId,
+            newTimeEntryId: timeEntryId,
+            isTimerActive,
+            isCapturingFromState: isCapturing,
+            isCapturingFromRef: isCapturingRef.current
+          });
+          stopCaptureRef.current();
+        }
+      } catch (error) {
+        console.error('[Screenshot] Error checking store in auto-stop:', error);
+        // Fallback to local props if store check fails
+        const currentEnabled = enabledRef.current;
+        if ((!currentEnabled || !timeEntryId) || timeEntryIdChanged) {
+          console.log('[Screenshot] Stopping capture (fallback to local props):', {
+            enabled: currentEnabled,
+            timeEntryId: !!timeEntryId,
+            timeEntryIdChanged
+          });
+          stopCaptureRef.current();
+        }
+      }
     }
     
     // Reset permission state when timeEntryId changes (new timer session)
