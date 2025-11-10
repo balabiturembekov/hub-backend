@@ -165,6 +165,31 @@ export function useScreenCapture({
       // Reuse existing global canvas
       canvasRef.current = globalScreenCapture.getCanvas();
     }
+    
+    // CRITICAL FIX: Sync local state with global state when component mounts
+    // This ensures "Capturing Screenshots!" badge persists when navigating between pages
+    if (globalScreenCapture.getIsCapturing() && globalScreenCapture.hasActiveStream()) {
+      const globalTimeEntryId = globalScreenCapture.getTimeEntryId();
+      // Only sync if timeEntryId matches (if provided)
+      if (!timeEntryId || timeEntryId === globalTimeEntryId) {
+        console.log('[Screenshot] Syncing local state with global capture state on mount:', {
+          globalIsCapturing: globalScreenCapture.getIsCapturing(),
+          globalTimeEntryId,
+          localTimeEntryId: timeEntryId
+        });
+        setIsCapturing(true);
+        isCapturingRef.current = true;
+        setHasPermission(true);
+        // Sync refs with global resources
+        if (globalScreenCapture.getStream()) {
+          streamRef.current = globalScreenCapture.getStream();
+        }
+        // Sync interval ref if global interval exists
+        if (globalScreenCapture.interval && !intervalRef.current) {
+          intervalRef.current = globalScreenCapture.interval;
+        }
+      }
+    }
 
     return () => {
       // Bug 90: Use props directly via closure instead of refs that update asynchronously
@@ -1769,6 +1794,33 @@ export function useScreenCapture({
           new: timeEntryId
         });
         globalScreenCapture.setTimeEntryId(timeEntryId);
+      }
+    }
+    
+    // CRITICAL FIX: Sync local state with global state when timeEntryId changes
+    // This ensures "Capturing Screenshots!" badge persists when navigating between pages
+    if (globalScreenCapture.getIsCapturing() && globalScreenCapture.hasActiveStream()) {
+      const globalTimeEntryId = globalScreenCapture.getTimeEntryId();
+      // If timeEntryId matches global (or is not provided yet), sync local state
+      if (!timeEntryId || timeEntryId === globalTimeEntryId) {
+        if (!isCapturingRef.current) {
+          console.log('[Screenshot] Syncing local state with global capture state (timeEntryId changed):', {
+            globalIsCapturing: globalScreenCapture.getIsCapturing(),
+            globalTimeEntryId,
+            localTimeEntryId: timeEntryId
+          });
+          setIsCapturing(true);
+          isCapturingRef.current = true;
+          setHasPermission(true);
+          // Sync refs with global resources
+          if (globalScreenCapture.getStream()) {
+            streamRef.current = globalScreenCapture.getStream();
+          }
+          // Sync interval ref if global interval exists
+          if (globalScreenCapture.interval && !intervalRef.current) {
+            intervalRef.current = globalScreenCapture.interval;
+          }
+        }
       }
     }
   }, [timeEntryId]);

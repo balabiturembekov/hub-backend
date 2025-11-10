@@ -755,7 +755,8 @@ export function TimeTracker() {
               <TooltipTrigger asChild>
                 <Button 
                   onClick={handleStart} 
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90" 
+                  variant="default"
+                  className="w-full" 
                   size="lg"
                   disabled={
                     isLoading || 
@@ -835,7 +836,7 @@ export function TimeTracker() {
                   <Button 
                     onClick={handleStop} 
                     variant="destructive" 
-                    className="flex-1 bg-destructive text-white hover:bg-destructive/90"
+                    className="flex-1"
                     disabled={isLoading}
                   >
                     <Square className="mr-2 h-4 w-4" />
@@ -855,7 +856,8 @@ export function TimeTracker() {
               <TooltipTrigger asChild>
                 <Button 
                   onClick={handleResume} 
-                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                  variant="default"
+                  className="flex-1"
                   disabled={isLoading}
                 >
                   <Play className="mr-2 h-4 w-4" />
@@ -872,7 +874,7 @@ export function TimeTracker() {
                 <Button 
                   onClick={handleStop} 
                   variant="destructive" 
-                  className="flex-1 bg-destructive text-white hover:bg-destructive/90"
+                  className="flex-1"
                   disabled={isLoading}
                 >
                   <Square className="mr-2 h-4 w-4" />
