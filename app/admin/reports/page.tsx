@@ -71,7 +71,7 @@ export default function ReportsPage() {
 
   // Filter time entries by date range and user
   const filteredTimeEntries = useMemo(() => {
-    if (!timeEntries || timeEntries.length === 0) {
+    if (!timeEntries || !Array.isArray(timeEntries) || timeEntries.length === 0) {
       return [];
     }
     
@@ -160,7 +160,8 @@ export default function ReportsPage() {
       if (topProjectId === 'no-project') {
         topProject = { name: 'No Project', hours: topProjectHours };
       } else {
-        const project = projects.find(p => p.id === topProjectId);
+        const safeProjects = projects && Array.isArray(projects) ? projects : [];
+        const project = safeProjects.find(p => p.id === topProjectId);
         topProject = { 
           name: project?.name || 'Unknown Project', 
           hours: topProjectHours 

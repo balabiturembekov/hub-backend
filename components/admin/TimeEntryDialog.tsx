@@ -46,8 +46,14 @@ export function TimeEntryDialog({ open, onOpenChange, entry }: TimeEntryDialogPr
       // Validate projectId - reset to 'none' if project doesn't exist or is archived
       let projectId = entry.projectId || 'none';
       if (projectId !== 'none') {
-        const projectExists = projects.find((p) => p.id === projectId && p.status === 'active');
-        if (!projectExists) {
+        // Validate projects array before using find
+        if (projects && Array.isArray(projects)) {
+          const projectExists = projects.find((p) => p.id === projectId && p.status === 'active');
+          if (!projectExists) {
+            projectId = 'none';
+          }
+        } else {
+          // If projects is not available, reset to 'none'
           projectId = 'none';
         }
       }

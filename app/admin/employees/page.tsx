@@ -151,16 +151,17 @@ export default function EmployeesPage() {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const total = users.length;
-    const active = users.filter(u => u.status === 'active').length;
-    const inactive = users.filter(u => u.status === 'inactive').length;
-    const admins = users.filter(u => 
+    const safeUsers = users && Array.isArray(users) ? users : [];
+    const total = safeUsers.length;
+    const active = safeUsers.filter(u => u.status === 'active').length;
+    const inactive = safeUsers.filter(u => u.status === 'inactive').length;
+    const admins = safeUsers.filter(u => 
       u.role === 'admin' || u.role === 'OWNER' || u.role === 'SUPER_ADMIN'
     ).length;
-    const employees = users.filter(u => u.role === 'employee').length;
-    const withRate = users.filter(u => u.hourlyRate && u.hourlyRate > 0).length;
-    const avgRate = users.length > 0
-      ? users.reduce((sum, u) => sum + (u.hourlyRate || 0), 0) / users.length
+    const employees = safeUsers.filter(u => u.role === 'employee').length;
+    const withRate = safeUsers.filter(u => u.hourlyRate && u.hourlyRate > 0).length;
+    const avgRate = safeUsers.length > 0
+      ? safeUsers.reduce((sum, u) => sum + (u.hourlyRate || 0), 0) / safeUsers.length
       : 0;
 
     return {

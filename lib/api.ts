@@ -190,6 +190,10 @@ class ApiClient {
   // Users
   async getUsers(): Promise<User[]> {
     const response = await this.client.get('/users');
+    if (!Array.isArray(response.data)) {
+      console.error('Invalid response format from /users', response.data);
+      return [];
+    }
     return response.data.map((data: any) => this.mapUser(data));
   }
 
@@ -495,6 +499,11 @@ class ApiClient {
 
   // Mappers
   private mapUser(data: any): User {
+    // Validate required fields
+    if (!data || !data.id || !data.name || !data.email) {
+      throw new Error('Invalid user data: missing required fields');
+    }
+    
     // Map backend roles to frontend roles
     let role: User['role'] = 'employee';
     if (data.role === 'SUPER_ADMIN') {
@@ -509,10 +518,10 @@ class ApiClient {
       id: data.id,
       name: data.name,
       email: data.email,
-      avatar: data.avatar,
+      avatar: data.avatar || undefined,
       role,
       status: data.status === 'ACTIVE' ? 'active' : 'inactive',
-      hourlyRate: data.hourlyRate,
+      hourlyRate: typeof data.hourlyRate === 'number' && !isNaN(data.hourlyRate) && data.hourlyRate >= 0 ? data.hourlyRate : undefined,
       companyId: data.companyId,
       company: data.company ? {
         id: data.company.id,
@@ -522,13 +531,18 @@ class ApiClient {
   }
 
   private mapProject(data: any): Project {
+    // Validate required fields
+    if (!data || !data.id || !data.name) {
+      throw new Error('Invalid project data: missing required fields');
+    }
+    
     return {
       id: data.id,
       name: data.name,
-      description: data.description,
+      description: data.description || undefined,
       color: data.color || '#3b82f6',
-      clientName: data.clientName,
-      budget: data.budget,
+      clientName: data.clientName || undefined,
+      budget: typeof data.budget === 'number' && !isNaN(data.budget) && data.budget >= 0 ? data.budget : undefined,
       status: data.status === 'ACTIVE' ? 'active' : 'archived',
     };
   }
@@ -623,6 +637,10 @@ class ApiClient {
   // Activities
   async getActivities(params?: { userId?: string; limit?: number }): Promise<Activity[]> {
     const response = await this.client.get('/time-entries/activities', { params });
+    if (!Array.isArray(response.data)) {
+      console.error('Invalid response format from /time-entries/activities', response.data);
+      return [];
+    }
     return response.data;
   }
 
@@ -641,15 +659,51 @@ class ApiClient {
   }
 
   private mapScreenshot(data: any): Screenshot {
+    // Validate required fields
+    if (!data || !data.id || !data.timeEntryId) {
+      throw new Error('Invalid screenshot data: missing required fields');
+    }
+    
+    // Validate and process imageUrl
+    if (!data.imageUrl || typeof data.imageUrl !== 'string') {
+      throw new Error('Invalid screenshot data: missing or invalid imageUrl');
+    }
+    const imageUrl = data.imageUrl.startsWith('http') 
+      ? data.imageUrl 
+      : `${API_URL.replace('/api', '')}${data.imageUrl}`;
+    
+    // Validate and process thumbnailUrl
+    let thumbnailUrl: string | undefined = undefined;
+    if (data.thumbnailUrl && typeof data.thumbnailUrl === 'string') {
+      thumbnailUrl = data.thumbnailUrl.startsWith('http') 
+        ? data.thumbnailUrl 
+        : `${API_URL.replace('/api', '')}${data.thumbnailUrl}`;
+    }
+    
+    // Validate and create dates
+    if (!data.timestamp) {
+      throw new Error('Invalid screenshot data: missing timestamp');
+    }
+    const timestamp = new Date(data.timestamp);
+    if (isNaN(timestamp.getTime())) {
+      throw new Error(`Invalid screenshot data: invalid timestamp "${data.timestamp}"`);
+    }
+    
+    if (!data.createdAt) {
+      throw new Error('Invalid screenshot data: missing createdAt');
+    }
+    const createdAt = new Date(data.createdAt);
+    if (isNaN(createdAt.getTime())) {
+      throw new Error(`Invalid screenshot data: invalid createdAt "${data.createdAt}"`);
+    }
+    
     return {
       id: data.id,
       timeEntryId: data.timeEntryId,
-      imageUrl: data.imageUrl.startsWith('http') ? data.imageUrl : `${API_URL.replace('/api', '')}${data.imageUrl}`,
-      thumbnailUrl: data.thumbnailUrl 
-        ? (data.thumbnailUrl.startsWith('http') ? data.thumbnailUrl : `${API_URL.replace('/api', '')}${data.thumbnailUrl}`)
-        : undefined,
-      timestamp: new Date(data.timestamp),
-      createdAt: new Date(data.createdAt),
+      imageUrl,
+      thumbnailUrl,
+      timestamp,
+      createdAt,
     };
   }
 }

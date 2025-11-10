@@ -92,6 +92,36 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       });
       return;
     }
+    
+    // Validate name maximum length (255 characters)
+    if (formData.name.trim().length > 255) {
+      toast({
+        title: 'Error',
+        description: 'Project name must not exceed 255 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate description maximum length (if provided)
+    if (formData.description && formData.description.trim().length > 1000) {
+      toast({
+        title: 'Error',
+        description: 'Description must not exceed 1000 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate clientName maximum length (if provided)
+    if (formData.clientName && formData.clientName.trim().length > 255) {
+      toast({
+        title: 'Error',
+        description: 'Client name must not exceed 255 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Validate color format
     const colorRegex = /^#[0-9A-Fa-f]{6}$/;

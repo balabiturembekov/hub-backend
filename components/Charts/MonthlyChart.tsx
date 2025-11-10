@@ -68,7 +68,8 @@ export function MonthlyChart() {
   });
 
   // Show skeleton only if loading AND no data yet
-  if (isLoading && timeEntries.length === 0) {
+  // Validate timeEntries array before checking length
+  if (isLoading && (!timeEntries || !Array.isArray(timeEntries) || timeEntries.length === 0)) {
     return (
       <Card>
         <CardHeader>

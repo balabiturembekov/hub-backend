@@ -102,19 +102,60 @@ export function useSocket() {
 
     // Stats updates
     socket.on('stats:update', (data: any) => {
-      if (data.totalHours !== undefined) {
-        updateStatsRef.current({
-          totalHours: data.totalHours,
-          activeUsers: data.activeUsers || 0,
-          totalProjects: data.totalProjects || 0,
-          todayHours: data.todayHours || 0,
-        });
+      try {
+        // Validate data structure
+        if (!data || typeof data !== 'object') {
+          console.warn('WebSocket: Invalid stats data structure:', data);
+          return;
+        }
+        
+        // Validate and convert numeric values
+        const totalHours = typeof data.totalHours === 'number' && !isNaN(data.totalHours) ? data.totalHours : undefined;
+        const activeUsers = typeof data.activeUsers === 'number' && !isNaN(data.activeUsers) && data.activeUsers >= 0 ? data.activeUsers : 0;
+        const totalProjects = typeof data.totalProjects === 'number' && !isNaN(data.totalProjects) && data.totalProjects >= 0 ? data.totalProjects : 0;
+        const todayHours = typeof data.todayHours === 'number' && !isNaN(data.todayHours) ? data.todayHours : undefined;
+        
+        if (totalHours !== undefined) {
+          updateStatsRef.current({
+            totalHours,
+            activeUsers,
+            totalProjects,
+            todayHours: todayHours !== undefined ? todayHours : totalHours,
+          });
+        }
+      } catch (error) {
+        console.error('WebSocket: Error processing stats:update', error);
       }
     });
 
     // Time entry updates
     socket.on('time-entry:update', (data: any) => {
       try {
+        // Validate data structure
+        if (!data || typeof data !== 'object') {
+          console.warn('WebSocket: Invalid time entry data structure:', data);
+          return;
+        }
+        
+        // Validate required fields
+        if (!data.id || typeof data.id !== 'string' || data.id.trim() === '') {
+          console.error('WebSocket: Invalid time entry data - missing or invalid id', data);
+          return;
+        }
+        
+        // Validate UUID format for id
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(data.id)) {
+          console.error('WebSocket: Invalid time entry id format (not UUID):', data.id);
+          return;
+        }
+        
+        // Validate userId if present
+        if (data.userId && (typeof data.userId !== 'string' || !uuidRegex.test(data.userId))) {
+          console.error('WebSocket: Invalid time entry userId format (not UUID):', data.userId);
+          return;
+        }
+        
         const status: 'running' | 'paused' | 'stopped' = 
           data.status === 'RUNNING' ? 'running' : 
           data.status === 'PAUSED' ? 'paused' : 
@@ -126,11 +167,20 @@ export function useSocket() {
           return;
         }
 
+        // Validate projectId if present (must be UUID or 'none')
+        let projectId = data.projectId;
+        if (projectId !== undefined && projectId !== null && projectId !== 'none') {
+          if (typeof projectId !== 'string' || !uuidRegex.test(projectId)) {
+            console.error('WebSocket: Invalid time entry projectId format (not UUID or "none"):', projectId);
+            projectId = undefined; // Set to undefined if invalid
+          }
+        }
+        
         const entry = {
           id: data.id,
           userId: data.userId,
           userName: data.user?.name || data.userName || '',
-          projectId: data.projectId,
+          projectId: projectId,
           projectName: data.project?.name || data.projectName,
           startTime: new Date(data.startTime),
           endTime: data.endTime ? new Date(data.endTime) : undefined,
@@ -151,6 +201,11 @@ export function useSocket() {
 
         // Check if entry exists and belongs to current user
         const state = useStore.getState();
+        // Validate timeEntries is an array
+        if (!state.timeEntries || !Array.isArray(state.timeEntries)) {
+          console.warn('WebSocket: timeEntries is not an array, skipping update');
+          return;
+        }
         const existing = state.timeEntries.find((e) => e.id === entry.id);
         const isCurrentUserEntry = entry.userId === state.currentUser?.id;
         
@@ -236,6 +291,26 @@ export function useSocket() {
           console.warn('WebSocket: Invalid activity data received, missing id or userId', data);
           return;
         }
+        
+        // Validate UUID format for id and userId
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (typeof data.id !== 'string' || !uuidRegex.test(data.id)) {
+          console.warn('WebSocket: Invalid activity id format (not UUID):', data.id);
+          return;
+        }
+        if (typeof data.userId !== 'string' || !uuidRegex.test(data.userId)) {
+          console.warn('WebSocket: Invalid activity userId format (not UUID):', data.userId);
+          return;
+        }
+        
+        // Validate projectId if present (must be UUID or 'none')
+        let projectId = data.projectId;
+        if (projectId !== undefined && projectId !== null && projectId !== 'none') {
+          if (typeof projectId !== 'string' || !uuidRegex.test(projectId)) {
+            console.warn('WebSocket: Invalid activity projectId format (not UUID or "none"):', projectId);
+            projectId = undefined; // Set to undefined if invalid
+          }
+        }
 
         // Validate and parse timestamp
         let timestamp: Date;
@@ -266,7 +341,7 @@ export function useSocket() {
           userAvatar: data.userAvatar || data.user?.avatar || undefined, // Include user avatar
           type: finalType,
           timestamp,
-          projectId: data.projectId,
+          projectId: projectId,
         });
       } catch (error) {
         console.error('WebSocket: Error processing activity:new', error);

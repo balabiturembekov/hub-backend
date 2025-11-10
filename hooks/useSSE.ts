@@ -28,21 +28,51 @@ export function useSSE() {
 
     eventSource.onmessage = (event) => {
       try {
+        // Validate event data
+        if (!event.data || typeof event.data !== 'string') {
+          console.warn('SSE: Invalid event data:', event.data);
+          return;
+        }
+        
         const data = JSON.parse(event.data);
+        
+        // Validate data structure
+        if (!data || typeof data !== 'object') {
+          console.warn('SSE: Invalid data structure:', data);
+          return;
+        }
+        
+        // Validate type field
+        if (!data.type || typeof data.type !== 'string') {
+          console.warn('SSE: Missing or invalid type field:', data);
+          return;
+        }
         
         if (data.type === 'stats_update') {
           // Get current timeEntries from store inside the handler to avoid stale closure
           const state = useStore.getState();
           const timeEntries = state.timeEntries;
           
+          // Validate timeEntries is an array
+          if (!timeEntries || !Array.isArray(timeEntries)) {
+            console.warn('SSE: timeEntries is not an array, skipping stats update');
+            return;
+          }
+          
           // Recalculate stats based on current time entries
           const totalSeconds = timeEntries.reduce(
-            (acc, entry) => acc + entry.duration,
+            (acc, entry) => {
+              // Validate entry structure
+              if (!entry || typeof entry.duration !== 'number' || isNaN(entry.duration)) {
+                return acc;
+              }
+              return acc + entry.duration;
+            },
             0
           );
           const activeUsers = new Set(
             timeEntries
-              .filter((e) => e.status === 'running')
+              .filter((e) => e && e.status === 'running' && e.userId)
               .map((e) => e.userId)
           ).size;
 

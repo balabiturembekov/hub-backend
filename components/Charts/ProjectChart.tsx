@@ -57,7 +57,11 @@ export function ProjectChart() {
     .sort((a, b) => b.hours - a.hours);
 
   // Show skeleton only if loading AND no data yet
-  if (isLoading && (projects.length === 0 || timeEntries.length === 0)) {
+  // Validate arrays before checking length
+  if (isLoading && (
+    !projects || !Array.isArray(projects) || projects.length === 0 || 
+    !timeEntries || !Array.isArray(timeEntries) || timeEntries.length === 0
+  )) {
     return (
       <Card>
         <CardHeader>

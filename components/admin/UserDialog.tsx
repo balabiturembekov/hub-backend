@@ -101,11 +101,31 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
       });
       return;
     }
+    
+    // Validate name maximum length (255 characters)
+    if (formData.name.trim().length > 255) {
+      toast({
+        title: 'Error',
+        description: 'Name must not exceed 255 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (!formData.email.trim()) {
       toast({
         title: 'Error',
         description: 'Email is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate email maximum length (255 characters)
+    if (formData.email.trim().length > 255) {
+      toast({
+        title: 'Error',
+        description: 'Email must not exceed 255 characters',
         variant: 'destructive',
       });
       return;
@@ -177,6 +197,15 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
           toast({
             title: 'Error',
             description: 'Password is required and must be at least 6 characters',
+            variant: 'destructive',
+          });
+          return;
+        }
+        // Validate maximum password length (128 characters)
+        if (formData.password.length > 128) {
+          toast({
+            title: 'Error',
+            description: 'Password must not exceed 128 characters',
             variant: 'destructive',
           });
           return;

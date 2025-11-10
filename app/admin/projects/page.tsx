@@ -139,16 +139,17 @@ export default function ProjectsPage() {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const total = projects.length;
-    const active = projects.filter(p => p.status === 'active').length;
-    const archived = projects.filter(p => p.status === 'archived').length;
-    const withBudget = projects.filter(p => p.budget && p.budget > 0);
+    const safeProjects = projects && Array.isArray(projects) ? projects : [];
+    const total = safeProjects.length;
+    const active = safeProjects.filter(p => p.status === 'active').length;
+    const archived = safeProjects.filter(p => p.status === 'archived').length;
+    const withBudget = safeProjects.filter(p => p.budget && p.budget > 0);
     const totalBudget = withBudget.reduce((sum, p) => sum + (p.budget || 0), 0);
     const avgBudget = withBudget.length > 0 ? totalBudget / withBudget.length : 0;
 
     // Calculate hours per project
-    const projectHours = projects.map(project => {
-      const entries = timeEntries.filter(e => e.projectId === project.id);
+    const projectHours = safeProjects.map(project => {
+      const entries = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.projectId === project.id);
       const totalSeconds = entries.reduce((sum, e) => {
         if (e.status === 'stopped' || e.status === 'paused') {
           return sum + (e.duration || 0);
@@ -256,7 +257,7 @@ export default function ProjectsPage() {
 
   // Get hours for a project
   const getProjectHours = (projectId: string) => {
-    const entries = timeEntries.filter(e => e.projectId === projectId);
+    const entries = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.projectId === projectId);
     const totalSeconds = entries.reduce((sum, e) => {
       if (e.status === 'stopped' || e.status === 'paused') {
         return sum + (e.duration || 0);

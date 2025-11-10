@@ -193,7 +193,7 @@ export default function DashboardPage() {
   }, [router, initializeAuth, loadUsers, loadProjects, loadTimeEntries, loadStats, loadActivities]);
 
   // Show loading state while initializing or loading data
-  if (isInitializing || (isLoading && timeEntries.length === 0)) {
+  if (isInitializing || (isLoading && (!timeEntries || !Array.isArray(timeEntries) || timeEntries.length === 0))) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -248,7 +248,7 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-                    {greeting()}, {currentUser?.name?.split(' ')[0] || 'there'}! 👋
+                    {greeting()}, {currentUser?.name?.split(' ')[0] || currentUser?.name || 'there'}! 👋
                   </h1>
                   <p className="mt-1 text-sm text-gray-600">
                     {format(new Date(), 'EEEE, MMMM d, yyyy')}

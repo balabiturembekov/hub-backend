@@ -52,7 +52,7 @@ export default function TrackingPage() {
   useEffect(() => {
     if (currentTime === 0) return; // Don't start interval until initialized
     
-    const hasRunningEntry = timeEntries.some(
+    const hasRunningEntry = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).some(
       e => e.userId === currentUser?.id && e.status === 'running'
     );
     
@@ -158,7 +158,7 @@ export default function TrackingPage() {
       return { todayEntries: [], todayHours: 0, activeEntry: null };
     }
 
-    const myEntriesFiltered = timeEntries.filter(e => e.userId === currentUser.id);
+    const myEntriesFiltered = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser.id);
     
     // Find active entry
     const active = myEntriesFiltered.find(e => e.status === 'running' || e.status === 'paused');
@@ -235,7 +235,7 @@ export default function TrackingPage() {
       return { weekHours: 0, monthHours: 0 };
     }
 
-    const myEntries = timeEntries.filter(e => e.userId === currentUser.id);
+    const myEntries = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser.id);
     // Use currentTime if initialized (it's set in useEffect), otherwise return 0
     // This prevents calling Date.now() during render
     if (currentTime === 0) {
@@ -311,7 +311,7 @@ export default function TrackingPage() {
   // Memoize filtered entries for ExportDialog
   // IMPORTANT: This hook MUST be called before any conditional returns
   const filteredEntriesForExport = useMemo(() => 
-    currentUser?.id ? timeEntries.filter(e => e.userId === currentUser.id) : []
+    currentUser?.id ? (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser.id) : []
   , [timeEntries, currentUser]);
 
   // Show loading state while initializing
@@ -561,7 +561,7 @@ export default function TrackingPage() {
                       <FileText className="h-5 w-5 text-primary" />
                       <h2 className="text-lg font-semibold text-gray-900">Time Entries</h2>
                       <Badge variant="secondary" className="ml-2">
-                        {timeEntries.filter(e => e.userId === currentUser?.id).length}
+                        {(timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser?.id).length}
                       </Badge>
                     </div>
                     <Button 

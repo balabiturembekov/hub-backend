@@ -22,16 +22,6 @@ export function ScreenshotSettings() {
   const [isUpdating, setIsUpdating] = useState(false);
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (warningTimeoutRef.current) {
-        clearTimeout(warningTimeoutRef.current);
-        warningTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
   const intervalOptions: { value: ScreenshotInterval; label: string }[] = [
     { value: 30, label: 'Every 30 seconds' },
     { value: 60, label: 'Every 1 minute' },
@@ -44,6 +34,7 @@ export function ScreenshotSettings() {
     return () => {
       if (warningTimeoutRef.current) {
         clearTimeout(warningTimeoutRef.current);
+        warningTimeoutRef.current = null;
       }
     };
   }, []);

@@ -61,7 +61,8 @@ export function ActiveUsers() {
     .slice(0, 5);
 
   // Show skeleton only if loading AND no data yet
-  if (isLoading && users.length === 0) {
+  // Validate users array before checking length
+  if (isLoading && (!users || !Array.isArray(users) || users.length === 0)) {
     return (
       <Card>
         <CardHeader>

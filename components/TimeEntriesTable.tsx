@@ -236,6 +236,10 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
 
   const getProjectColor = (projectId?: string) => {
     if (!projectId) return undefined;
+    // Validate projects array before using find
+    if (!projects || !Array.isArray(projects)) {
+      return undefined;
+    }
     const project = projects.find((p) => p.id === projectId);
     return project?.color;
   };

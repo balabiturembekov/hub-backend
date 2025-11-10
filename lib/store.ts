@@ -107,12 +107,15 @@ export const useStore = create<AppState>((set, get) => ({
   setTimeEntries: (entries) => set({ timeEntries: entries }),
   addTimeEntry: (entry) =>
     set((state) => {
+      // Validate timeEntries is an array
+      const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+      
       // Check if entry already exists (avoid duplicates)
-      const existing = state.timeEntries.find((e) => e.id === entry.id);
+      const existing = safeTimeEntries.find((e) => e.id === entry.id);
       if (existing) {
         // If entry exists, update it instead of adding duplicate
         return {
-          timeEntries: state.timeEntries.map((e) => e.id === entry.id ? entry : e),
+          timeEntries: safeTimeEntries.map((e) => e.id === entry.id ? entry : e),
           activeTimeEntry: state.activeTimeEntry?.id === entry.id && entry.status !== 'stopped' 
             ? entry 
             : state.activeTimeEntry,
@@ -147,7 +150,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
       
       return {
-        timeEntries: [entry, ...state.timeEntries],
+        timeEntries: [entry, ...safeTimeEntries],
         activeTimeEntry: newActiveTimeEntry,
       };
     }),
@@ -174,8 +177,11 @@ export const useStore = create<AppState>((set, get) => ({
         }
         // Otherwise, keep current activeTimeEntry
         
+        // Validate timeEntries is an array
+        const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+        
         return {
-          timeEntries: state.timeEntries.map((e) =>
+          timeEntries: safeTimeEntries.map((e) =>
             e.id === id ? updatedEntry : e
           ),
           activeTimeEntry: newActiveTimeEntry,
@@ -197,17 +203,20 @@ export const useStore = create<AppState>((set, get) => ({
   
   addActivity: (activity) =>
     set((state) => {
+      // Validate activities is an array
+      const safeActivities = state.activities && Array.isArray(state.activities) ? state.activities : [];
+      
       // Check if activity already exists (prevent duplicates from WebSocket + API)
-      const existingIndex = state.activities.findIndex((a) => a.id === activity.id);
+      const existingIndex = safeActivities.findIndex((a) => a.id === activity.id);
       if (existingIndex !== -1) {
         // Update existing activity instead of adding duplicate
-        const updated = [...state.activities];
+        const updated = [...safeActivities];
         updated[existingIndex] = activity;
         return { activities: updated };
       }
       // Add new activity at the beginning (most recent first)
       return {
-        activities: [activity, ...state.activities].slice(0, 100),
+        activities: [activity, ...safeActivities].slice(0, 100),
       };
     }),
   setActivities: (activities) => set({ activities }),
@@ -303,13 +312,16 @@ export const useStore = create<AppState>((set, get) => ({
         ? await api.getTimeEntries()
         : await api.getMyTimeEntries();
       
+      // Validate entries is an array
+      const safeEntries = entries && Array.isArray(entries) ? entries : [];
+      
       // Find active entry for current user (running or paused)
-      const activeEntry = entries.find(
+      const activeEntry = safeEntries.find(
         e => (e.status === 'running' || e.status === 'paused') && e.userId === currentUser.id
       ) || null;
       
       set({ 
-        timeEntries: entries,
+        timeEntries: safeEntries,
         activeTimeEntry: activeEntry,
         isLoading: false 
       });
@@ -578,10 +590,13 @@ export const useStore = create<AppState>((set, get) => ({
       const projects = await api.getProjects();
       const activeEntries = await api.getActiveTimeEntries();
       
+      // Validate entries is an array
+      const safeEntries = entries && Array.isArray(entries) ? entries : [];
+      
       // Calculate total seconds including running entries (for initial load)
       // Note: Real-time updates will be handled by DashboardStats component
       const now = Date.now();
-      const totalSeconds = entries.reduce((acc, e) => {
+      const totalSeconds = safeEntries.reduce((acc, e) => {
         let entrySeconds = 0;
         
         if (e.status === 'stopped') {
@@ -612,7 +627,7 @@ export const useStore = create<AppState>((set, get) => ({
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todaySeconds = entries.reduce((acc, e) => {
+      const todaySeconds = safeEntries.reduce((acc, e) => {
         try {
           const entryDate = new Date(e.startTime);
           if (isNaN(entryDate.getTime()) || entryDate < today) {
@@ -642,11 +657,15 @@ export const useStore = create<AppState>((set, get) => ({
       const totalHours = totalSeconds / 3600;
       const todayHoursValue = todaySeconds / 3600;
       
+      // Validate activeEntries and projects are arrays
+      const safeActiveEntries = activeEntries && Array.isArray(activeEntries) ? activeEntries : [];
+      const safeProjects = projects && Array.isArray(projects) ? projects : [];
+      
       set({
         stats: {
           totalHours: isFinite(totalHours) && !isNaN(totalHours) ? totalHours : 0,
-          activeUsers: new Set(activeEntries.map(e => e.userId)).size,
-          totalProjects: projects.filter(p => p.status === 'active').length,
+          activeUsers: new Set(safeActiveEntries.map(e => e.userId)).size,
+          totalProjects: safeProjects.filter(p => p.status === 'active').length,
           todayHours: isFinite(todayHoursValue) && !isNaN(todayHoursValue) ? todayHoursValue : 0,
         },
       });
@@ -696,7 +715,7 @@ export const useStore = create<AppState>((set, get) => ({
 
       // Merge with existing activities from WebSocket to prevent duplicates
       // Activities from API are authoritative (most recent), but keep WebSocket activities that are newer
-      const existingActivities = state.activities;
+      const existingActivities = state.activities && Array.isArray(state.activities) ? state.activities : [];
       const existingIds = new Set(existingActivities.map(a => a.id));
       const apiIds = new Set(activities.map(a => a.id));
       
@@ -1006,8 +1025,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isLoading: true, error: null });
       const entry = await api.stopTimeEntry(entryId);
       const state = get();
+      // Validate timeEntries is an array
+      const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+      
       set({
-        timeEntries: state.timeEntries.map((e) =>
+        timeEntries: safeTimeEntries.map((e) =>
           e.id === entryId ? entry : e
         ),
         activeTimeEntry: null,
@@ -1027,8 +1049,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isLoading: true, error: null });
       const entry = await api.pauseTimeEntry(entryId);
       const state = get();
+      // Validate timeEntries is an array
+      const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+      
       set({
-        timeEntries: state.timeEntries.map((e) =>
+        timeEntries: safeTimeEntries.map((e) =>
           e.id === entryId ? entry : e
         ),
         // Keep activeTimeEntry even when paused so user can resume
@@ -1052,8 +1077,11 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isLoading: true, error: null });
       const entry = await api.resumeTimeEntry(entryId);
       const state = get();
+      // Validate timeEntries is an array
+      const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+      
       set({
-        timeEntries: state.timeEntries.map((e) =>
+        timeEntries: safeTimeEntries.map((e) =>
           e.id === entryId ? entry : e
         ),
         activeTimeEntry: entry,
@@ -1096,10 +1124,15 @@ export const useStore = create<AppState>((set, get) => ({
         api.setCurrentUser(user);
         set({ currentUser: user });
       }
-      set((state) => ({
-        users: state.users.map((u) => (u.id === id ? user : u)),
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate users is an array
+        const safeUsers = state.users && Array.isArray(state.users) ? state.users : [];
+        
+        return {
+          users: safeUsers.map((u) => (u.id === id ? user : u)),
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to update user', 
@@ -1113,10 +1146,15 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       await api.deleteUser(id);
-      set((state) => ({
-        users: state.users.filter((u) => u.id !== id),
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate users is an array
+        const safeUsers = state.users && Array.isArray(state.users) ? state.users : [];
+        
+        return {
+          users: safeUsers.filter((u) => u.id !== id),
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to delete user', 
@@ -1147,10 +1185,15 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const project = await api.updateProject(id, data);
-      set((state) => ({
-        projects: state.projects.map((p) => (p.id === id ? project : p)),
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate projects is an array
+        const safeProjects = state.projects && Array.isArray(state.projects) ? state.projects : [];
+        
+        return {
+          projects: safeProjects.map((p) => (p.id === id ? project : p)),
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to update project', 
@@ -1164,10 +1207,15 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       await api.deleteProject(id);
-      set((state) => ({
-        projects: state.projects.filter((p) => p.id !== id),
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate projects is an array
+        const safeProjects = state.projects && Array.isArray(state.projects) ? state.projects : [];
+        
+        return {
+          projects: safeProjects.filter((p) => p.id !== id),
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to delete project', 
@@ -1184,11 +1232,16 @@ export const useStore = create<AppState>((set, get) => ({
       const user = await api.updateMyProfile(data);
       // Update localStorage
       api.setCurrentUser(user);
-      set((state) => ({
-        currentUser: user,
-        users: state.users.map((u) => (u.id === user.id ? user : u)),
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate users is an array
+        const safeUsers = state.users && Array.isArray(state.users) ? state.users : [];
+        
+        return {
+          currentUser: user,
+          users: safeUsers.map((u) => (u.id === user.id ? user : u)),
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to update profile', 
@@ -1203,11 +1256,16 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       await api.deleteTimeEntry(id);
-      set((state) => ({
-        timeEntries: state.timeEntries.filter((e) => e.id !== id),
-        activeTimeEntry: state.activeTimeEntry?.id === id ? null : state.activeTimeEntry,
-        isLoading: false,
-      }));
+      set((state) => {
+        // Validate timeEntries is an array
+        const safeTimeEntries = state.timeEntries && Array.isArray(state.timeEntries) ? state.timeEntries : [];
+        
+        return {
+          timeEntries: safeTimeEntries.filter((e) => e.id !== id),
+          activeTimeEntry: state.activeTimeEntry?.id === id ? null : state.activeTimeEntry,
+          isLoading: false,
+        };
+      });
     } catch (error: any) {
       set({ 
         error: error.response?.data?.message || error.message || 'Failed to delete time entry', 

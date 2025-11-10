@@ -27,7 +27,8 @@ export function RecentActivity() {
   }
   
   // Filter activities: admins/owners see all
-  const filteredActivities = activities;
+  // Validate activities array before using
+  const filteredActivities = (activities && Array.isArray(activities) ? activities : []);
 
   const getActivityIcon = (type: string) => {
     switch (type) {

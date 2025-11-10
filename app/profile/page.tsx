@@ -123,7 +123,7 @@ export default function ProfilePage() {
       };
     }
 
-    const myEntries = timeEntries.filter(e => e.userId === currentUser.id);
+    const myEntries = (timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser.id);
     
     // Helper function to safely get duration
     const getDuration = (e: any): number => {
