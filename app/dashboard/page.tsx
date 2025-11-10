@@ -237,20 +237,20 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto">
-          <div className="bg-gradient-to-b from-primary/5 via-white to-white">
+          <div className="bg-gradient-to-b from-primary/5 via-background to-background">
             {/* Welcome Section */}
-            <div className="border-b bg-white px-6 py-6">
+            <div className="border-b bg-card px-6 py-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
                     {greeting()}, {currentUser?.name?.split(' ')[0] || currentUser?.name || 'there'}! 👋
                   </h1>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {format(new Date(), 'EEEE, MMMM d, yyyy')}
                   </p>
                 </div>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Activity className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold text-gray-900">Overview</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Overview</h2>
                     </div>
                   </div>
                   <DashboardStats />
@@ -294,7 +294,7 @@ export default function DashboardPage() {
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-gray-900">Time Tracker</h2>
+                        <h2 className="text-lg font-semibold text-foreground">Time Tracker</h2>
                       </div>
                     </div>
                     <TimeTrackerErrorBoundary />
@@ -305,7 +305,7 @@ export default function DashboardPage() {
                       <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Users className="h-5 w-5 text-primary" />
-                          <h2 className="text-lg font-semibold text-gray-900">Active Team</h2>
+                          <h2 className="text-lg font-semibold text-foreground">Active Team</h2>
                         </div>
                       </div>
                       <ActiveUsers />
@@ -318,7 +318,7 @@ export default function DashboardPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold text-gray-900">Analytics</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Analytics</h2>
                     </div>
                     {isAdmin && (
                       <Link href="/admin/reports">
@@ -361,7 +361,7 @@ export default function DashboardPage() {
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+                        <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
                       </div>
                     </div>
                     <RecentActivity />
@@ -373,7 +373,7 @@ export default function DashboardPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold text-gray-900">Recent Time Entries</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Recent Time Entries</h2>
                     </div>
                     <Link href="/tracking">
                       <Button variant="ghost" size="sm" className="gap-2">

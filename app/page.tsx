@@ -367,7 +367,11 @@ export default function Home() {
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="lg" variant="outline" className="w-full border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 sm:w-auto">
+                <Button 
+                  size="lg" 
+                  variant="ghost"
+                  className="w-full border border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 sm:w-auto"
+                >
                   Sign In
                 </Button>
               </Link>

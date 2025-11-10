@@ -348,7 +348,7 @@ export default function TeamActivityPage() {
       case 'medium':
         return 'bg-yellow-500/10 text-yellow-700 hover:bg-yellow-500/20 border-yellow-500/20';
       case 'low':
-        return 'bg-gray-500/10 text-gray-700 hover:bg-gray-500/20 border-gray-500/20';
+        return 'bg-muted/50 text-muted-foreground hover:bg-muted border-border';
       default:
         return '';
     }
@@ -372,18 +372,18 @@ export default function TeamActivityPage() {
     : 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto">
-          <div className="bg-gradient-to-b from-primary/5 via-white to-white">
+          <div className="bg-gradient-to-b from-primary/5 via-background to-background">
             {/* Header Section */}
-            <div className="border-b bg-white px-6 py-6">
+            <div className="border-b bg-card px-6 py-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Time & Activity</h1>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Time & Activity</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {isAdmin 
                       ? "See team members' time worked, activity levels, and amounts earned per project"
                       : "View your time worked, activity levels, and amounts earned per project"}

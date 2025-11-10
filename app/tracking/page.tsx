@@ -322,7 +322,7 @@ export default function TrackingPage() {
       return null; // Will redirect to login
     }
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
@@ -364,18 +364,18 @@ export default function TrackingPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto">
-          <div className="bg-gradient-to-b from-primary/5 via-white to-white">
+          <div className="bg-gradient-to-b from-primary/5 via-background to-background">
             {/* Header Section */}
-            <div className="border-b bg-white px-6 py-6">
+            <div className="border-b bg-card px-6 py-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Time Tracking</h1>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Time Tracking</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Track your work time and manage your entries
                   </p>
                 </div>
@@ -488,7 +488,7 @@ export default function TrackingPage() {
                   <div className="lg:col-span-2">
                     <div className="mb-4 flex items-center gap-2">
                       <Play className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold text-gray-900">Time Tracker</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Time Tracker</h2>
                     </div>
                     <TimeTrackerErrorBoundary />
                   </div>
@@ -508,7 +508,7 @@ export default function TrackingPage() {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between rounded-lg bg-primary/5 p-3">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">Total Hours</p>
+                              <p className="text-sm font-medium text-foreground">Total Hours</p>
                               <p className="text-xs text-muted-foreground">Tracked today</p>
                             </div>
                             <div className="text-right">
@@ -523,7 +523,7 @@ export default function TrackingPage() {
                           
                           <div className="flex items-center justify-between rounded-lg border p-3">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">Entries</p>
+                              <p className="text-sm font-medium text-foreground">Entries</p>
                               <p className="text-xs text-muted-foreground">Time entries</p>
                             </div>
                             <div className="text-right">
@@ -559,7 +559,7 @@ export default function TrackingPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FileText className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold text-gray-900">Time Entries</h2>
+                      <h2 className="text-lg font-semibold text-foreground">Time Entries</h2>
                       <Badge variant="secondary" className="ml-2">
                         {(timeEntries && Array.isArray(timeEntries) ? timeEntries : []).filter(e => e.userId === currentUser?.id).length}
                       </Badge>

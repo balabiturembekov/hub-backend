@@ -716,9 +716,9 @@ export function TimeTracker() {
             {/* Show warning only for employees with no active projects */}
             {currentUser?.role === 'employee' && 
              (!projects || !Array.isArray(projects) || projects.filter((p) => p.status === 'active').length === 0) ? (
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
-                <p className="font-medium">No Active Projects</p>
-                <p className="mt-1">Please contact your administrator to create a project before starting the timer.</p>
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">No Active Projects</p>
+                <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">Please contact your administrator to create a project before starting the timer.</p>
               </div>
             ) : (
               /* Always show Select for employees with projects, and for non-employees */

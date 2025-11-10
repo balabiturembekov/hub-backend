@@ -276,7 +276,7 @@ export default function ProjectsPage() {
       return null; // Will redirect to login
     }
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
@@ -328,18 +328,18 @@ export default function ProjectsPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="bg-gradient-to-b from-primary/5 via-white to-white">
+            <div className="bg-gradient-to-b from-primary/5 via-background to-background">
               {/* Header Section */}
-              <div className="border-b bg-white px-6 py-6">
+              <div className="border-b bg-card px-6 py-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Projects</h1>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Projects</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Manage and organize your projects
                     </p>
                   </div>
@@ -514,7 +514,7 @@ export default function ProjectsPage() {
                       <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <FolderOpen className="h-5 w-5 text-primary" />
-                          <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
+                          <h2 className="text-lg font-semibold text-foreground">Projects</h2>
                           <Badge variant="secondary" className="ml-2">
                             {filteredProjects.length}
                           </Badge>

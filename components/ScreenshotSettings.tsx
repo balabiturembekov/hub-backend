@@ -111,19 +111,21 @@ export function ScreenshotSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {showWarning && canEdit && (
-            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Note:</strong> When you start tracking time, your browser will ask you to choose what to share:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li><strong>Entire Screen:</strong> Captures your whole screen, even when switching between apps</li>
-                <li><strong>Window/Tab:</strong> Only captures the selected window or browser tab</li>
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong className="text-yellow-800 dark:text-yellow-200">Note:</strong> When you start tracking time, your browser will ask you to choose what to share:
+              </p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-yellow-800 dark:text-yellow-200">
+                <li><strong className="text-yellow-800 dark:text-yellow-200">Entire Screen:</strong> Captures your whole screen, even when switching between apps</li>
+                <li><strong className="text-yellow-800 dark:text-yellow-200">Window/Tab:</strong> Only captures the selected window or browser tab</li>
               </ul>
-              <p className="mt-2">Your screen will only be captured while the timer is running.</p>
+              <p className="mt-2 text-sm text-yellow-800 dark:text-yellow-200">Your screen will only be captured while the timer is running.</p>
             </div>
           )}
 
           {!canEdit && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-sm text-blue-800 dark:text-blue-200">
-              <p>These settings are configured by your administrator. Contact an admin to change screenshot capture settings.</p>
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <p className="text-sm text-blue-800 dark:text-blue-200">These settings are configured by your administrator. Contact an admin to change screenshot capture settings.</p>
             </div>
           )}
 

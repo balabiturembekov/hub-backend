@@ -265,7 +265,7 @@ export default function EmployeesPage() {
       return null; // Will redirect to login
     }
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
@@ -330,7 +330,7 @@ export default function EmployeesPage() {
       currentUser.role !== 'OWNER' && 
       currentUser.role !== 'SUPER_ADMIN') {
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
@@ -352,18 +352,18 @@ export default function EmployeesPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto">
-            <div className="bg-gradient-to-b from-primary/5 via-white to-white">
+            <div className="bg-gradient-to-b from-primary/5 via-background to-background">
               {/* Header Section */}
-              <div className="border-b bg-white px-6 py-6">
+              <div className="border-b bg-card px-6 py-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Employees</h1>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Employees</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Manage your team members and their roles
                     </p>
                   </div>
