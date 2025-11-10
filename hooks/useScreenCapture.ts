@@ -1643,6 +1643,8 @@ export function useScreenCapture({
     }
 
     setIsCapturing(false);
+    // BUG FIX: Clear permission state when stopping to prevent re-requesting
+    setHasPermission(null);
   }, []);
 
   // Store functions in refs to avoid stale closures in useEffect
@@ -1799,10 +1801,15 @@ export function useScreenCapture({
     
     // CRITICAL FIX: Sync local state with global state when timeEntryId changes
     // This ensures "Capturing Screenshots!" badge persists when navigating between pages
-    if (globalScreenCapture.getIsCapturing() && globalScreenCapture.hasActiveStream()) {
+    // BUG FIX: Don't sync if timeEntryId is null (timer stopped) - this prevents re-requesting permissions
+    if (timeEntryId && 
+        typeof timeEntryId === 'string' && 
+        timeEntryId.trim() !== '' &&
+        globalScreenCapture.getIsCapturing() && 
+        globalScreenCapture.hasActiveStream()) {
       const globalTimeEntryId = globalScreenCapture.getTimeEntryId();
-      // If timeEntryId matches global (or is not provided yet), sync local state
-      if (!timeEntryId || timeEntryId === globalTimeEntryId) {
+      // If timeEntryId matches global, sync local state
+      if (timeEntryId === globalTimeEntryId) {
         if (!isCapturingRef.current) {
           console.log('[Screenshot] Syncing local state with global capture state (timeEntryId changed):', {
             globalIsCapturing: globalScreenCapture.getIsCapturing(),
@@ -1874,9 +1881,12 @@ export function useScreenCapture({
           }
         }
         
-        // Timer stopped globally OR timeEntryId changed to different value - stop capture
+        // Timer stopped globally OR timeEntryId changed to different value OR timeEntryId is null - stop capture
+        // BUG FIX: Also stop if timeEntryId is null (timer stopped), even if timeEntryIdChanged is false
         const currentEnabled = enabledRef.current;
-        const shouldStop = !isTimerActive || (!currentEnabled && !screenshotSettings?.screenshotEnabled) || 
+        const shouldStop = !isTimerActive || 
+                          !timeEntryId || // BUG FIX: Stop if timeEntryId is null
+                          (!currentEnabled && !screenshotSettings?.screenshotEnabled) || 
                           (timeEntryIdChanged && timeEntryId !== activeTimeEntry?.id);
         
         if (shouldStop) {

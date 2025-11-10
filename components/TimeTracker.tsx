@@ -63,17 +63,17 @@ export function TimeTracker() {
   // This handles the case when user navigates away and comes back
   useEffect(() => {
     // Check if timer is running and screenshot capture should be active
+    // BUG FIX: Only auto-resume if permission was explicitly granted (true), not if null (never requested)
     if (activeTimeEntry?.status === 'running' && 
         activeTimeEntry?.id && 
         screenshotSettings.enabled && 
         !isScreenCapturing &&
-        hasScreenshotPermission !== false) {
-      // Only auto-resume if permission was previously granted (not null, not false)
-      // If permission was revoked (false), don't auto-resume - user needs to click resume button
-      if (hasScreenshotPermission === true) {
-        console.log('[TimeTracker] Auto-resuming screenshot capture after remount');
-        // Small delay to ensure component is fully mounted
-        const timeoutId = setTimeout(() => {
+        hasScreenshotPermission === true) {
+      // Only auto-resume if permission was previously granted
+      // If permission was never requested (null) or revoked (false), don't auto-resume
+      console.log('[TimeTracker] Auto-resuming screenshot capture after remount');
+      // Small delay to ensure component is fully mounted
+      const timeoutId = setTimeout(() => {
           const state = useStore.getState();
           const currentActiveEntry = state.activeTimeEntry;
           // Double-check conditions before resuming
@@ -90,8 +90,7 @@ export function TimeTracker() {
             });
           }
         }, 100);
-        return () => clearTimeout(timeoutId);
-      }
+      return () => clearTimeout(timeoutId);
     }
   }, [activeTimeEntry?.id, activeTimeEntry?.status, screenshotSettings.enabled, isScreenCapturing, hasScreenshotPermission, startScreenshotCapture]);
 
@@ -448,8 +447,10 @@ export function TimeTracker() {
   const handleStop = async () => {
     if (!activeTimeEntry || isLoading) return;
     try {
-      // Stop screenshot capture before stopping timer
-      if (isScreenCapturing) {
+      // Stop screenshot capture BEFORE stopping timer to prevent re-requesting permissions
+      // This ensures capture is stopped while timeEntryId is still valid
+      if (isScreenCapturing || hasScreenshotPermission) {
+        console.log('[TimeTracker] Stopping screenshot capture before stopping timer');
         stopScreenshotCapture();
       }
       await stopTimer(activeTimeEntry.id);
@@ -476,7 +477,8 @@ export function TimeTracker() {
     if (!activeTimeEntry || activeTimeEntry.status !== 'running' || isLoading) return;
     try {
       // Stop screenshot capture when pausing timer (bug79)
-      if (isScreenCapturing) {
+      // BUG FIX: Also check hasScreenshotPermission to prevent re-requesting permissions
+      if (isScreenCapturing || hasScreenshotPermission) {
         console.log('[TimeTracker] Stopping screenshot capture due to timer pause');
         stopScreenshotCapture();
       }
@@ -505,7 +507,8 @@ export function TimeTracker() {
       const freshActiveEntry = state.activeTimeEntry;
       
       // Resume screenshot capture if enabled and permission exists (bug79)
-      if (screenshotSettings.enabled && !isScreenCapturing && hasScreenshotPermission !== false) {
+      // BUG FIX: Only resume if permission was explicitly granted (true), not if null (never requested)
+      if (screenshotSettings.enabled && !isScreenCapturing && hasScreenshotPermission === true) {
         // Wait a bit for state to update after resume
         // Note: This setTimeout is in an async function handler, not in render or effect
         // It's safe here as it's part of user action handler
