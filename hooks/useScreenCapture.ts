@@ -986,7 +986,74 @@ export function useScreenCapture({
           
           // Verify all required resources are still available
           if (!globalVideo || !globalCanvas || !globalTimeEntryId || !globalStream) {
-            console.warn('[Screenshot] Required resources not available, skipping capture');
+            console.warn('[Screenshot] Required resources not available, skipping capture', {
+              hasVideo: !!globalVideo,
+              hasCanvas: !!globalCanvas,
+              hasTimeEntryId: !!globalTimeEntryId,
+              hasStream: !!globalStream,
+              streamActive: globalStream ? globalStream.getTracks().some(t => t.readyState === 'live') : false
+            });
+            
+            // BUG FIX: If resources are missing but we should be capturing, try to recover
+            // Check if we should still be capturing (timer is active)
+            try {
+              const state = useStore.getState();
+              const activeTimeEntry = state.activeTimeEntry;
+              const screenshotSettings = state.screenshotSettings;
+              
+              // If timer is still active and screenshots are enabled, but resources are missing,
+              // try to recreate missing resources
+              if (activeTimeEntry?.status === 'running' && 
+                  screenshotSettings?.screenshotEnabled &&
+                  globalStream) {
+                // Try to recreate video if missing
+                if (!globalVideo && typeof document !== 'undefined') {
+                  console.log('[Screenshot] Recreating missing video element');
+                  try {
+                    const newVideo = document.createElement('video');
+                    newVideo.autoplay = true;
+                    newVideo.playsInline = true;
+                    newVideo.style.display = 'none';
+                    document.body.appendChild(newVideo);
+                    newVideo.srcObject = globalStream;
+                    await newVideo.play();
+                    globalScreenCapture.setVideo(newVideo);
+                    console.log('[Screenshot] Video element recreated successfully');
+                  } catch (error) {
+                    console.error('[Screenshot] Failed to recreate video:', error);
+                  }
+                }
+                
+                // Try to recreate canvas if missing
+                if (!globalCanvas && typeof document !== 'undefined') {
+                  console.log('[Screenshot] Recreating missing canvas element');
+                  try {
+                    const newCanvas = document.createElement('canvas');
+                    globalScreenCapture.setCanvas(newCanvas);
+                    console.log('[Screenshot] Canvas element recreated successfully');
+                  } catch (error) {
+                    console.error('[Screenshot] Failed to recreate canvas:', error);
+                  }
+                }
+                
+                // If still missing critical resources after recovery attempt, stop interval
+                const finalVideo = globalScreenCapture.getVideo();
+                const finalCanvas = globalScreenCapture.getCanvas();
+                if (!finalVideo || !finalCanvas) {
+                  console.error('[Screenshot] Resources still missing after recovery attempt - stopping interval');
+                  globalScreenCapture.clearInterval();
+                  globalScreenCapture.setIsCapturing(false);
+                }
+              } else if (activeTimeEntry?.status !== 'running' || !screenshotSettings?.screenshotEnabled) {
+                // Timer stopped or screenshots disabled - this is expected, just stop interval
+                console.log('[Screenshot] Timer stopped or screenshots disabled, stopping interval');
+                globalScreenCapture.clearInterval();
+                globalScreenCapture.setIsCapturing(false);
+              }
+            } catch (error) {
+              console.error('[Screenshot] Error checking state during resource check:', error);
+            }
+            
             return;
           }
           

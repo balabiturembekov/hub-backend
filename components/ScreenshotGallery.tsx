@@ -262,7 +262,7 @@ export function ScreenshotGallery({ timeEntryId, open, onOpenChange }: Screensho
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40"
             >
               Delete
             </AlertDialogAction>

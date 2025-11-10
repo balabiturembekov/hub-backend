@@ -407,7 +407,7 @@ export function TimeEntriesTable({ userId, showActions = true }: TimeEntriesTabl
                       {entry.status === 'running' ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-green-600 font-medium cursor-help">Live</span>
+                            <span className="text-primary font-medium cursor-help">Live</span>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Timer is currently running and tracking time</p>
