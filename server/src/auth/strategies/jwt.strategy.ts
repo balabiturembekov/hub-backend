@@ -5,6 +5,14 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PinoLogger } from 'nestjs-pino';
 
+interface JwtPayload {
+  sub: string;
+  email?: string;
+  companyId?: string;
+  iat?: number;
+  exp?: number;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -29,7 +37,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     this.logger.setContext(JwtStrategy.name);
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
+    // Validate payload structure
+    if (!payload || !payload.sub) {
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(payload.sub)) {
+      throw new UnauthorizedException('Invalid token payload - invalid user ID format');
+    }
+
+    // Explicitly check expiration (Passport already checks, but this is for clarity)
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      throw new UnauthorizedException('Token expired');
+    }
+
+    // Require companyId in payload
+    if (!payload.companyId) {
+      this.logger.warn(
+        {
+          payloadSub: payload.sub,
+        },
+        'Token missing companyId',
+      );
+      throw new UnauthorizedException('Token is invalid - missing companyId');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -54,7 +89,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    if (payload.companyId && user.companyId !== payload.companyId) {
+    // Check if company exists
+    if (!user.company) {
+      this.logger.warn(
+        {
+          userId: user.id,
+          companyId: user.companyId,
+        },
+        'User has no associated company',
+      );
+      throw new UnauthorizedException('User company not found');
+    }
+
+    // Verify companyId matches
+    if (user.companyId !== payload.companyId) {
       this.logger.warn(
         {
           userId: user.id,

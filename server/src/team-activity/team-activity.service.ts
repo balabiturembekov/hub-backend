@@ -110,6 +110,7 @@ export class TeamActivityService {
         throw new NotFoundException(`User with ID ${effectiveUserId} not found in your company`);
       }
 
+      // Explicitly add id filter to where clause
       where.id = effectiveUserId;
     }
 

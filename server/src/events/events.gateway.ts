@@ -113,12 +113,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       client.data.userId = payload.sub;
-      client.data.email = payload.email;
+      client.data.email = payload.email || 'unknown';
       client.data.companyId = companyId;
 
       this.connectedClients.set(client.id, client);
 
-      this.logger.log(`Client ${client.id} connected (User: ${payload.email}, Company: ${companyId})`);
+      this.logger.log(`Client ${client.id} connected (User: ${payload.email || payload.sub}, Company: ${companyId})`);
 
       client.join(`user:${payload.sub}`);
       client.join(`company:${companyId}`);

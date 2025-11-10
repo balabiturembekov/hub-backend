@@ -236,84 +236,98 @@ export class ScreenshotsService {
   }
 
   async delete(screenshotId: string, companyId: string, userId: string) {
-    const screenshot = await this.prisma.screenshot.findUnique({
-      where: { id: screenshotId },
-      include: {
-        timeEntry: {
-          include: {
-            user: true,
-          },
-        },
-      },
-    });
-
-    if (!screenshot) {
-      throw new NotFoundException('Screenshot not found');
-    }
-
-    if (screenshot.timeEntry.user.companyId !== companyId) {
-      throw new ForbiddenException('Access denied');
-    }
-
-    if (screenshot.timeEntry.userId !== userId) {
-      const user = await this.prisma.user.findFirst({
-        where: {
-          id: userId,
-          companyId,
-          role: {
-            in: ['ADMIN', 'OWNER', 'SUPER_ADMIN'],
+    // Perform deletion within transaction to ensure atomicity and verify companyId
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Verify screenshot exists and belongs to company within transaction
+      const screenshot = await tx.screenshot.findUnique({
+        where: { id: screenshotId },
+        include: {
+          timeEntry: {
+            include: {
+              user: true,
+            },
           },
         },
       });
 
-      if (!user) {
+      if (!screenshot) {
+        throw new NotFoundException('Screenshot not found');
+      }
+
+      // Check for null timeEntry or user
+      if (!screenshot.timeEntry || !screenshot.timeEntry.user) {
+        throw new NotFoundException('Time entry or user not found for this screenshot');
+      }
+
+      // Verify companyId
+      if (screenshot.timeEntry.user.companyId !== companyId) {
         throw new ForbiddenException('Access denied');
       }
-    }
 
-    try {
-      const normalizeAndValidatePath = (fileUrl: string, expectedDir: string): string | null => {
-        if (!fileUrl) return null;
-        if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
-          return null;
+      // Check permissions
+      if (screenshot.timeEntry.userId !== userId) {
+        const user = await tx.user.findFirst({
+          where: {
+            id: userId,
+            companyId,
+            role: {
+              in: ['ADMIN', 'OWNER', 'SUPER_ADMIN'],
+            },
+          },
+        });
+
+        if (!user) {
+          throw new ForbiddenException('Access denied');
         }
-        const normalizedUrl = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
-        const resolvedPath = path.resolve(process.cwd(), normalizedUrl);
-        const expectedDirPath = path.resolve(expectedDir);
-
-        if (!resolvedPath.startsWith(expectedDirPath + path.sep) && resolvedPath !== expectedDirPath) {
-          this.logger.warn(`Path traversal attempt detected: ${fileUrl} resolved to ${resolvedPath}, expected within ${expectedDirPath}`);
-          return null;
-        }
-        return resolvedPath;
-      };
-
-      const imagePath = normalizeAndValidatePath(screenshot.imageUrl, this.uploadsDir);
-      const thumbnailPath = screenshot.thumbnailUrl
-        ? normalizeAndValidatePath(screenshot.thumbnailUrl, this.thumbnailsDir)
-        : null;
-
-      if (imagePath && fsSync.existsSync(imagePath)) {
-        await fs.unlink(imagePath);
       }
 
-      if (thumbnailPath && fsSync.existsSync(thumbnailPath)) {
-        await fs.unlink(thumbnailPath);
-      }
-    } catch (error: any) {
-      this.logger.error(
-        {
-          error: error.message,
-          stack: error?.stack,
-          screenshotId,
-          imageUrl: screenshot.imageUrl,
-        },
-        'Error deleting screenshot files',
-      );
-    }
+      // Delete files
+      try {
+        const normalizeAndValidatePath = (fileUrl: string, expectedDir: string): string | null => {
+          if (!fileUrl) return null;
+          if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+            return null;
+          }
+          const normalizedUrl = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
+          const resolvedPath = path.resolve(process.cwd(), normalizedUrl);
+          const expectedDirPath = path.resolve(expectedDir);
 
-    await this.prisma.screenshot.delete({
-      where: { id: screenshotId },
+          if (!resolvedPath.startsWith(expectedDirPath + path.sep) && resolvedPath !== expectedDirPath) {
+            this.logger.warn(`Path traversal attempt detected: ${fileUrl} resolved to ${resolvedPath}, expected within ${expectedDirPath}`);
+            return null;
+          }
+          return resolvedPath;
+        };
+
+        const imagePath = normalizeAndValidatePath(screenshot.imageUrl, this.uploadsDir);
+        const thumbnailPath = screenshot.thumbnailUrl
+          ? normalizeAndValidatePath(screenshot.thumbnailUrl, this.thumbnailsDir)
+          : null;
+
+        if (imagePath && fsSync.existsSync(imagePath)) {
+          await fs.unlink(imagePath);
+        }
+
+        if (thumbnailPath && fsSync.existsSync(thumbnailPath)) {
+          await fs.unlink(thumbnailPath);
+        }
+      } catch (error: any) {
+        this.logger.error(
+          {
+            error: error.message,
+            stack: error?.stack,
+            screenshotId,
+            imageUrl: screenshot.imageUrl,
+          },
+          'Error deleting screenshot files',
+        );
+        // Continue with database deletion even if file deletion fails
+      }
+
+      // Delete database record
+      return tx.screenshot.delete({
+        where: { id: screenshotId },
+      });
     });
 
     return { success: true };

@@ -403,10 +403,26 @@ export class TimeEntriesService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      if (dto.status === 'RUNNING' && entry.status !== 'RUNNING') {
+      // Read current entry within transaction to ensure consistency
+      const currentEntry = await tx.timeEntry.findFirst({
+        where: {
+          id,
+          user: {
+            companyId,
+          },
+        },
+      });
+
+      if (!currentEntry) {
+        throw new NotFoundException(`Time entry with ID ${id} not found`);
+      }
+
+      // Check for active entries if trying to set status to RUNNING
+      // This check happens within the transaction AFTER reading current entry to prevent race conditions
+      if (dto.status === 'RUNNING' && currentEntry.status !== 'RUNNING') {
         const activeEntryCheck = await tx.timeEntry.findFirst({
           where: {
-            userId: entry.userId,
+            userId: currentEntry.userId,
             status: {
               in: ['RUNNING', 'PAUSED'],
             },
@@ -424,19 +440,7 @@ export class TimeEntriesService {
         }
       }
 
-      const currentEntry = await tx.timeEntry.findFirst({
-        where: {
-          id,
-          user: {
-            companyId,
-          },
-        },
-      });
-
-      if (!currentEntry) {
-        throw new NotFoundException(`Time entry with ID ${id} not found`);
-      }
-
+      // Update entry immediately after checks to minimize race condition window
       return tx.timeEntry.update({
         where: { id },
         data: updateData,
@@ -518,6 +522,25 @@ export class TimeEntriesService {
     }
 
     const transactionResult = await this.prisma.$transaction(async (tx) => {
+      // Verify entry exists and belongs to company within transaction
+      const currentEntry = await tx.timeEntry.findFirst({
+        where: {
+          id,
+          user: {
+            companyId,
+          },
+        },
+      });
+
+      if (!currentEntry) {
+        throw new NotFoundException(`Time entry with ID ${id} not found`);
+      }
+
+      // Check status again within transaction
+      if (currentEntry.status === 'STOPPED') {
+        throw new BadRequestException('Time entry is already stopped');
+      }
+
       const updatedEntry = await tx.timeEntry.update({
         where: { id },
         data: {
@@ -546,8 +569,8 @@ export class TimeEntriesService {
 
       const activity = await tx.activity.create({
         data: {
-          userId: entry.userId,
-          projectId: entry.projectId,
+          userId: currentEntry.userId,
+          projectId: currentEntry.projectId,
           type: 'STOP',
         },
       });
@@ -629,6 +652,25 @@ export class TimeEntriesService {
     }
 
     const transactionResult = await this.prisma.$transaction(async (tx) => {
+      // Verify entry exists and belongs to company within transaction
+      const currentEntry = await tx.timeEntry.findFirst({
+        where: {
+          id,
+          user: {
+            companyId,
+          },
+        },
+      });
+
+      if (!currentEntry) {
+        throw new NotFoundException(`Time entry with ID ${id} not found`);
+      }
+
+      // Check status again within transaction
+      if (currentEntry.status !== 'RUNNING') {
+        throw new BadRequestException('Only running entries can be paused');
+      }
+
       const updatedEntry = await tx.timeEntry.update({
         where: { id },
         data: {
@@ -657,8 +699,8 @@ export class TimeEntriesService {
 
       const activity = await tx.activity.create({
         data: {
-          userId: entry.userId,
-          projectId: entry.projectId,
+          userId: currentEntry.userId,
+          projectId: currentEntry.projectId,
           type: 'PAUSE',
         },
       });
@@ -715,8 +757,14 @@ export class TimeEntriesService {
     }
 
     const transactionResult = await this.prisma.$transaction(async (tx) => {
-      const currentEntry = await tx.timeEntry.findUnique({
-        where: { id },
+      // Use findFirst with companyId check to ensure data isolation
+      const currentEntry = await tx.timeEntry.findFirst({
+        where: {
+          id,
+          user: {
+            companyId,
+          },
+        },
         select: { status: true, userId: true },
       });
 
@@ -724,6 +772,8 @@ export class TimeEntriesService {
         throw new BadRequestException('Only paused entries can be resumed');
       }
 
+      // Check for active entries BEFORE updating to prevent race conditions
+      // This check happens within the transaction to ensure consistency
       const activeEntryCheck = await tx.timeEntry.findFirst({
         where: {
           userId: currentEntry.userId,
@@ -743,6 +793,7 @@ export class TimeEntriesService {
         throw new BadRequestException('User already has an active time entry. Please stop or pause the existing entry first.');
       }
 
+      // Update entry - this happens immediately after the check to minimize race condition window
       const updatedEntry = await tx.timeEntry.update({
         where: { id },
         data: {
@@ -815,6 +866,9 @@ export class TimeEntriesService {
   }
 
   async findAllActivities(companyId: string, userId?: string, limit: number = 100) {
+    // Validate and constrain limit to prevent performance issues
+    const validatedLimit = Math.min(Math.max(1, limit), 1000); // Between 1 and 1000
+
     const where: any = {
       user: {
         companyId,
@@ -847,7 +901,7 @@ export class TimeEntriesService {
       orderBy: {
         timestamp: 'desc',
       },
-      take: limit,
+      take: validatedLimit,
     });
 
     return activities
@@ -864,16 +918,35 @@ export class TimeEntriesService {
   }
 
   async remove(id: string, companyId: string, deleterId: string, deleterRole: UserRole) {
+    // Initial check for existence and companyId
     const entry = await this.findOne(id, companyId);
 
-    if (deleterRole !== UserRole.OWNER && deleterRole !== UserRole.ADMIN && deleterRole !== UserRole.SUPER_ADMIN) {
-      if (entry.userId !== deleterId) {
-        throw new ForbiddenException('You can only delete your own time entries');
-      }
-    }
+    // Perform deletion within transaction to ensure atomicity and verify companyId
+    const deleted = await this.prisma.$transaction(async (tx) => {
+      // Verify entry exists and belongs to company within transaction
+      const currentEntry = await tx.timeEntry.findFirst({
+        where: {
+          id,
+          user: {
+            companyId,
+          },
+        },
+      });
 
-    const deleted = await this.prisma.timeEntry.delete({
-      where: { id },
+      if (!currentEntry) {
+        throw new NotFoundException(`Time entry with ID ${id} not found`);
+      }
+
+      // Check permissions
+      if (deleterRole !== UserRole.OWNER && deleterRole !== UserRole.ADMIN && deleterRole !== UserRole.SUPER_ADMIN) {
+        if (currentEntry.userId !== deleterId) {
+          throw new ForbiddenException('You can only delete your own time entries');
+        }
+      }
+
+      return tx.timeEntry.delete({
+        where: { id },
+      });
     });
 
     await this.cache.invalidateStats(companyId);

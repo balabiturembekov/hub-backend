@@ -16,7 +16,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       useFactory: (configService: ConfigService) => {
         const secret = configService.get('JWT_SECRET');
         if (!secret || secret === 'secret') {
-          console.warn('⚠️  WARNING: JWT_SECRET is not set or using default "secret". This is insecure in production!');
+          // Warning is already logged in jwt.strategy.ts, no need to duplicate
           if (process.env.NODE_ENV === 'production') {
             throw new Error('JWT_SECRET must be set in production environment');
           }

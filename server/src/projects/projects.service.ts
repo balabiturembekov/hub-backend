@@ -12,9 +12,20 @@ export class ProjectsService {
   ) {}
 
   async create(dto: CreateProjectDto, companyId: string) {
+    // Validate and sanitize project name
+    const sanitizedName = dto.name.trim();
+    if (!sanitizedName || sanitizedName.length < 1) {
+      throw new BadRequestException('Project name cannot be empty');
+    }
+
+    // Sanitize description if provided
+    const sanitizedDescription = dto.description ? dto.description.trim() : undefined;
+
     const project = await this.prisma.project.create({
       data: {
         ...dto,
+        name: sanitizedName,
+        description: sanitizedDescription,
         companyId,
       },
     });
@@ -99,31 +110,70 @@ export class ProjectsService {
   }
 
   async update(id: string, dto: UpdateProjectDto, companyId: string) {
+    // Initial check for existence and companyId
     await this.findOne(id, companyId);
 
-    if (dto.status === 'ARCHIVED') {
-      const activeEntries = await this.prisma.timeEntry.findMany({
+    // Perform update within transaction to ensure atomicity and verify companyId
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Verify project exists and belongs to company within transaction
+      const currentProject = await tx.project.findFirst({
         where: {
-          projectId: id,
-          status: {
-            in: ['RUNNING', 'PAUSED'],
-          },
-          user: {
-            companyId,
-          },
+          id,
+          companyId,
         },
       });
 
-      if (activeEntries.length > 0) {
-        throw new BadRequestException(
-          `Cannot archive project with active time entries. Please stop all running/paused timers associated with this project first (${activeEntries.length} active timer${activeEntries.length > 1 ? 's' : ''}).`,
-        );
+      if (!currentProject) {
+        throw new NotFoundException(`Project with ID ${id} not found in your company`);
       }
-    }
 
-    const updated = await this.prisma.project.update({
-      where: { id },
-      data: dto,
+      // Validate and sanitize name if provided
+      let sanitizedName: string | undefined;
+      if (dto.name) {
+        sanitizedName = dto.name.trim();
+        if (!sanitizedName || sanitizedName.length < 1) {
+          throw new BadRequestException('Project name cannot be empty');
+        }
+      }
+
+      // Sanitize description if provided
+      const sanitizedDescription = dto.description !== undefined 
+        ? (dto.description ? dto.description.trim() : null)
+        : undefined;
+
+      const updateData: any = { ...dto };
+      if (sanitizedName) {
+        updateData.name = sanitizedName;
+      }
+      if (sanitizedDescription !== undefined) {
+        updateData.description = sanitizedDescription;
+      }
+
+      // Check for active time entries if trying to archive
+      if (dto.status === 'ARCHIVED') {
+        const activeEntries = await tx.timeEntry.findMany({
+          where: {
+            projectId: id,
+            status: {
+              in: ['RUNNING', 'PAUSED'],
+            },
+            user: {
+              companyId,
+            },
+          },
+        });
+
+        if (activeEntries.length > 0) {
+          throw new BadRequestException(
+            `Cannot archive project with active time entries. Please stop all running/paused timers associated with this project first (${activeEntries.length} active timer${activeEntries.length > 1 ? 's' : ''}).`,
+          );
+        }
+      }
+
+      return tx.project.update({
+        where: { id },
+        data: updateData,
+      });
     });
 
     await this.cache.invalidateProjects(companyId);
@@ -132,9 +182,24 @@ export class ProjectsService {
   }
 
   async remove(id: string, companyId: string) {
+    // Initial check for existence and companyId
     await this.findOne(id, companyId);
 
+    // Perform deletion within transaction to ensure atomicity and verify companyId
     const deleted = await this.prisma.$transaction(async (tx) => {
+      // Verify project exists and belongs to company within transaction
+      const currentProject = await tx.project.findFirst({
+        where: {
+          id,
+          companyId,
+        },
+      });
+
+      if (!currentProject) {
+        throw new NotFoundException(`Project with ID ${id} not found in your company`);
+      }
+
+      // Check for active time entries
       const activeEntries = await tx.timeEntry.findMany({
         where: {
           projectId: id,
