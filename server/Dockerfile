@@ -1,12 +1,11 @@
 # Multi-stage build for NestJS backend
-FROM node:20-alpine AS builder
+# Using node:20-slim instead of alpine to avoid musl issues with Prisma binaries
+FROM node:20-slim AS builder
 
-# Set DNS servers for better network reliability during build
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf && \
-  echo "nameserver 8.8.4.4" >> /etc/resolv.conf || true
-
-# Install curl and bind-tools for testing CDN connectivity
-RUN apk add --no-cache curl bind-tools
+# Install curl and dnsutils for testing CDN connectivity
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl dnsutils && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -55,12 +54,16 @@ RUN echo "🚀 Starting Prisma Client generation..." && \
         echo "✅ Prisma Client files verified!" && \
         echo "📁 Generated files:" && \
         ls -lah node_modules/.prisma/client/ | head -10 && \
-        if grep -q "export type User" node_modules/.prisma/client/index.d.ts 2>/dev/null; then \
+        echo "📄 Checking index.d.ts content..." && \
+        head -50 node_modules/.prisma/client/index.d.ts | grep -E "(User|UserRole|Project|TimeEntry)" || echo "No model types found" && \
+        if grep -qE "(export type User|export \{ User \}|export type.*User)" node_modules/.prisma/client/index.d.ts 2>/dev/null; then \
           echo "✅ TypeScript types found!" && \
           GENERATION_SUCCESS=true && \
           break; \
         else \
-          echo "❌ TypeScript types not found in generated client"; \
+          echo "❌ TypeScript types not found in generated client" && \
+          echo "First 20 lines of index.d.ts:" && \
+          head -20 node_modules/.prisma/client/index.d.ts || echo "Cannot read file"; \
         fi; \
       else \
         echo "❌ Prisma Client files missing after generation" && \
@@ -103,16 +106,14 @@ RUN echo "🔍 Verifying Prisma Client before build..." && \
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
-
-# Set DNS servers for better network reliability during build
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf && \
-  echo "nameserver 8.8.4.4" >> /etc/resolv.conf || true
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install wget for healthcheck and netcat for entrypoint
-RUN apk add --no-cache wget netcat-openbsd postgresql-client
+# Install wget for healthcheck, netcat for entrypoint, and postgresql-client for migrations
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget netcat-openbsd postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install production dependencies only (including prisma for migrations)
 COPY package*.json ./
