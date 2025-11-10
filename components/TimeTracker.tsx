@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useScreenCapture } from '@/hooks/useScreenCapture';
 import { useScreenshotSettings } from '@/hooks/useScreenshotSettings';
+import { Confetti, type ConfettiRef } from '@/components/ui/confetti';
 
 export function TimeTracker() {
   const { 
@@ -41,6 +42,9 @@ export function TimeTracker() {
   const [prevSelectedProject, setPrevSelectedProject] = useState(selectedProject);
   // Track pending toast notifications to prevent memory leaks
   const [pendingToast, setPendingToast] = useState<{ type: string; message: string } | null>(null);
+  
+  // Confetti ref for celebration animation
+  const confettiRef = useRef<ConfettiRef>(null);
   
   // Screenshot settings and capture
   const { settings: screenshotSettings } = useScreenshotSettings();
@@ -382,6 +386,19 @@ export function TimeTracker() {
         title: 'Timer started',
         description: 'Time tracking has started',
       });
+      
+      // Celebrate with confetti! 🎉
+      // Small delay to ensure UI is updated before animation
+      setTimeout(() => {
+        if (confettiRef.current) {
+          confettiRef.current.fire({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+          });
+        }
+      }, 100);
     } catch (error: unknown) {
       console.error('Failed to start timer:', error);
       
@@ -625,6 +642,7 @@ export function TimeTracker() {
 
   return (
     <TooltipProvider>
+      <Confetti ref={confettiRef} manualstart className="fixed inset-0 pointer-events-none z-50" />
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

@@ -125,7 +125,7 @@ export function ScreenshotSettings() {
 
           {!canEdit && (
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-              <p className="text-sm text-blue-800 dark:text-blue-200">These settings are configured by your administrator. Contact an admin to change screenshot capture settings.</p>
+              <p className="text-sm font-semibold !text-blue-900 dark:!text-blue-100">These settings are configured by your administrator. Contact an admin to change screenshot capture settings.</p>
             </div>
           )}
 
