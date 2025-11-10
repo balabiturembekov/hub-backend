@@ -391,12 +391,24 @@ export function TimeTracker() {
       // Small delay to ensure UI is updated before animation
       setTimeout(() => {
         if (confettiRef.current) {
+          // Full screen confetti from multiple points for better coverage
           confettiRef.current.fire({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 },
+            particleCount: 150,
+            spread: 360,
+            origin: { x: 0.5, y: 0.3 },
             colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
           });
+          // Additional burst from center
+          setTimeout(() => {
+            if (confettiRef.current) {
+              confettiRef.current.fire({
+                particleCount: 100,
+                spread: 360,
+                origin: { x: 0.5, y: 0.5 },
+                colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+              });
+            }
+          }, 200);
         }
       }, 100);
     } catch (error: unknown) {
@@ -642,7 +654,12 @@ export function TimeTracker() {
 
   return (
     <TooltipProvider>
-      <Confetti ref={confettiRef} manualstart className="fixed inset-0 pointer-events-none z-50" />
+      <Confetti 
+        ref={confettiRef} 
+        manualstart 
+        className="fixed top-0 left-0 w-screen h-screen pointer-events-none z-50" 
+        style={{ width: '100vw', height: '100vh' }}
+      />
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
