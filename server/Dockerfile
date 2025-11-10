@@ -44,34 +44,68 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV PRISMA_ENGINES_DOWNLOAD_TIMEOUT=300000
 # Retry logic with exponential backoff and better error reporting
 RUN echo "🚀 Starting Prisma Client generation..." && \
+    GENERATION_SUCCESS=false && \
     for i in 1 2 3 4 5; do \
       echo "" && \
       echo "════════════════════════════════════════" && \
       echo "📦 Attempt $i/5: Generating Prisma Client..." && \
       echo "════════════════════════════════════════" && \
-      (npx prisma generate --schema=./prisma/schema.prisma 2>&1 | tee /tmp/prisma-generate.log) && \
-      if [ -d "node_modules/.prisma" ] && [ -f "node_modules/.prisma/client/index.js" ]; then \
-        echo "✅ Prisma Client generated successfully!" && \
-        ls -lah node_modules/.prisma/client/ | head -5 && \
-        break; \
-      else \
-        echo "❌ Attempt $i failed" && \
-        if [ $i -lt 5 ]; then \
-          echo "⏳ Waiting $((i * 20)) seconds before retry..." && \
-          sleep $((i * 20)); \
+      if npx prisma generate --schema=./prisma/schema.prisma 2>&1 | tee /tmp/prisma-generate.log; then \
+        echo "✅ Prisma generate command completed" && \
+        if [ -d "node_modules/.prisma" ] && \
+           [ -f "node_modules/.prisma/client/index.js" ] && \
+           [ -f "node_modules/.prisma/client/index.d.ts" ] && \
+           [ -d "node_modules/@prisma/client" ]; then \
+          echo "✅ Prisma Client files verified!" && \
+          echo "📁 Generated files:" && \
+          ls -lah node_modules/.prisma/client/ | head -10 && \
+          echo "📦 Checking for TypeScript types..." && \
+          if grep -q "export type User" node_modules/.prisma/client/index.d.ts 2>/dev/null; then \
+            echo "✅ TypeScript types found!" && \
+            GENERATION_SUCCESS=true && \
+            break; \
+          else \
+            echo "❌ TypeScript types not found in generated client" && \
+          fi; \
+        else \
+          echo "❌ Prisma Client files missing after generation" && \
+          echo "Checking what was created:" && \
+          ls -la node_modules/.prisma/ 2>/dev/null || echo "No .prisma directory" && \
+          ls -la node_modules/@prisma/ 2>/dev/null || echo "No @prisma directory" && \
         fi; \
+      else \
+        echo "❌ Prisma generate command failed with exit code $?" && \
+      fi; \
+      if [ "$GENERATION_SUCCESS" = "false" ] && [ $i -lt 5 ]; then \
+        echo "⏳ Waiting $((i * 20)) seconds before retry..." && \
+        sleep $((i * 20)); \
       fi; \
     done && \
-    if [ ! -d "node_modules/.prisma" ] || [ ! -f "node_modules/.prisma/client/index.js" ]; then \
+    if [ "$GENERATION_SUCCESS" != "true" ]; then \
       echo "" && \
       echo "❌ ERROR: Prisma Client generation failed after 5 attempts" && \
       echo "Last error log:" && \
-      tail -50 /tmp/prisma-generate.log 2>/dev/null || echo "No log available" && \
+      tail -100 /tmp/prisma-generate.log 2>/dev/null || echo "No log available" && \
+      echo "" && \
+      echo "Checking node_modules structure:" && \
+      ls -la node_modules/ | grep -E "(prisma|@prisma)" || echo "No Prisma directories found" && \
       echo "" && \
       echo "Network diagnostics:" && \
       curl -I https://binaries.prisma.sh/ 2>&1 | head -5 || echo "Cannot reach Prisma CDN" && \
       exit 1; \
-    fi
+    fi && \
+    echo "" && \
+    echo "✅ Prisma Client generation completed successfully!"
+
+# Verify Prisma Client is available before building
+RUN echo "🔍 Verifying Prisma Client before build..." && \
+    if [ ! -f "node_modules/.prisma/client/index.d.ts" ]; then \
+      echo "❌ ERROR: Prisma Client types not found!" && \
+      echo "Checking node_modules:" && \
+      ls -la node_modules/.prisma/ 2>/dev/null || echo "No .prisma directory" && \
+      exit 1; \
+    fi && \
+    echo "✅ Prisma Client verified, starting build..."
 
 # Build the application
 RUN npm run build
