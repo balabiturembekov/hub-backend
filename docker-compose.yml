@@ -90,7 +90,6 @@ services:
         NEXT_PUBLIC_BASE_URL: https://hubnity.automatonsoft.de
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-https://70dca710f304ae557f050c47cb4b69b7@o4510310717784064.ingest.de.sentry.io/4510310720077904}
     container_name: hubstaff-frontend
-    restart: unless-stopped
     environment:
       NODE_ENV: production
       # API URLs - use HTTPS domain
